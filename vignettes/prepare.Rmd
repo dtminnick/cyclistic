@@ -1,0 +1,216 @@
+---
+title: "Cyclistic Data Analysis Notebook: Prepare Phase"
+author: "Donnie Minnick"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+# output: rmarkdown::html_vignette
+# vignette: >
+#   %\VignetteIndexEntry{prepare}
+#   %\VignetteEngine{knitr::rmarkdown}
+#   %\VignetteEncoding{UTF-8}
+---
+
+## Context
+
+This notebook documents part of a data analysis I completed in the capstone experience for the Google Data Analytics Professional Certificate program on Coursera.
+
+You can find the Github repository for my work [here](https://github.com/dtminnick/cyclistic).
+
+## Prepare Phase
+
+This phase involves understanding how data is generated and collected, identifying data structure and format, and ensuring data is credible.
+
+As part of the prepare phase, I consolidate data into a single before the process phase of the analysis.
+
+I am using libraries from the tidyverse collection of R packages and supplementing with the aws.s3 library to download data files from the Amazon AWS, and the knitr library to format tables contained within this notebook.
+
+```{r load_libraries, message = FALSE}
+packages <- c("aws.s3", "dplyr", "knitr", "stringr")
+
+installed_packages <- packages %in% rownames(installed.packages())
+
+if(any(installed_packages == FALSE)) {
+  
+  install.packages(packages[!installed_packages])
+  
+}
+
+invisible(lapply(packages, library, character.only = TRUE))
+```
+
+### Data Storage
+
+Source data for this project is collected directly by Cyclistic and stored on the Amazon AWS [here](https://divvy-tripdata.s3.amazonaws.com/index.html).  
+
+The following code chunk uses the aws.s3 library to create and display a data frame listing the files in the AWS bucket.
+
+```{r view_zip_files}
+files <- as.data.frame(get_bucket("divvy-tripdata")) %>%
+  rename(bucket = Bucket,
+         key = Key,
+         date_last_modified = LastModified,
+         size_in_bytes = Size) %>%
+  mutate(size_in_bytes = as.numeric(size_in_bytes),
+         size_in_megabytes = round(size_in_bytes / 1e+06, 1),
+         date_last_modified = as.Date(date_last_modified)) %>%
+  select(bucket,
+         key,
+         size_in_megabytes,
+         date_last_modified) %>%
+  arrange(key)
+
+kable(files,
+      col.names = c("Bucket",
+                    "File Name",
+                    "File Size (Mb)",
+                    "Date Last Modified"),
+      caption = "Cyclistic Data Files",
+      align = c("l", "l", "r", "r"))
+```
+
+The bucket contains `r nrow(files)` zip files with last modified dates ranging from `r min(files$date_last_modified)` to `r max(files$date_last_modified)`.
+
+There are some inconsistencies in files names and time periods covered, e.g. some monthly and others quarterly.  Data is available for January 2013 through November 2023.
+
+### Data Collection
+
+I will use the most recent full year of available data for this analysis, i.e. the 2022 calendar year, to ensure I capture trends and/or seasonality.  When data becomes available for December 2023, I can refresh and compare 2022 and 2023 analyses.
+
+The code chunk below saves the zip and source files in project subfolders.
+
+I am using a sub-string to filter out all files except those with 2022 in the file name.
+
+```{r download_target_files}
+target_files <- files %>%
+  filter(str_sub(key, 1, 4) == "2022")
+
+for(i in 1:nrow(target_files)) {
+
+  save_object(object = target_files[i,]$key,
+              bucket = target_files[i,]$bucket,
+              file = paste("../inst/extdata/zip/", target_files[i,]$key, sep = ""),
+              overwrite = TRUE)
+  
+}
+```
+
+The following code chunk extracts the source files from the zip files and saves them.
+
+```{r extract_source_files}
+source_files <- list.files("../inst/extdata/zip", full.names = TRUE)
+
+for(i in 1:length(source_files)) {
+
+  unzip(zipfile = source_files[i],
+        exdir = "../inst/extdata/source",
+        overwrite = TRUE)
+  
+}
+```
+
+To cleanup the source directory, I remove extracted MacOS versions of the source files, which I don't need, and rename the September 2022 file to be consistent with the others.
+
+The source .csv files follow the naming convention: YYYYMM-divvy-tripdata.csv.
+
+```{r clean_source_directory}
+unlink("../inst/extdata/source/__MACOSX", recursive = TRUE)
+
+file.rename("../inst/extdata/source/202209-divvy-publictripdata.csv",
+            "../inst/extdata/source/202209-divvy-tripdata.csv")
+```
+
+There are `r length(source_files)` files, one for each month in 2022.
+
+On inspection, source files appear to be consistent in structure and can be combined without error.
+
+The following code reads and combines the source files into a single data frame for purposes of review, cleaning and transformation.  The data frame is saved in the project as an .rda file.  The code also row counts of input and output files for comparison.
+
+```{r combine_source_files, messages = FALSE}
+source_files <- list.files("../inst/extdata/source", full.names = TRUE)
+
+source <- data.frame()
+
+recon <- data.frame(file = character(0),
+                    count = integer(0),
+                    cumulative_count = integer(0),
+                    source_count = integer(0))
+
+cumulative_count <- 0
+
+for(i in 1:length(source_files)) {
+
+  data <- read.csv(source_files[i],
+                   header = TRUE,
+                   sep = ",",
+                   na.strings = c(""),
+                   stringsAsFactors = FALSE)
+
+  source <- rbind(source, data)
+
+  count <- nrow(data)
+
+  cumulative_count <- cumulative_count + count
+
+  source_count <- nrow(source)
+  
+  file_size <- file.info(source_files[i])$size / 1e+06
+  
+  recon <- rbind(recon, c(source_files[i], 
+                          count, 
+                          cumulative_count, 
+                          source_count,
+                          file_size))
+
+}
+
+kable(recon,
+      col.names = c("Input File",
+                    "Row Count",
+                    "Cumulative Row Count",
+                    "Output File Count",
+                    "File Size (Mb)"),
+      caption = "File Reconciliation",
+      format.args = list(big.mark = ","),
+      align = c("l", "r", "r", "r", "r"))
+
+usethis::use_data(source, overwrite = TRUE)
+```
+
+The file reconciliation table compares and confirms row counts between the input and output files.
+
+I will explore whether I can model data to reduce overall size as part of next phase of the analysis.
+
+### Data Structure
+
+The combined data frame includes `r ncol(source)` columns and `r nrow(source)` rows of data.  The table below shows the structure of the data frame.
+
+```{r view_data_structure}
+structure <- data.frame(variable = names(source),
+                        class = sapply(source, typeof),
+                        first_values = sapply(source, function(x) paste0(head(x),  collapse = ", ")),
+                        row.names = NULL)
+
+kable(structure,
+      caption = "Source Data Structure",
+      col.names = c("Variable", "Class", "First Values"))
+```
+
+Some initial observations about the data frame:
+
+* ride_id appears to be a unique identifier,
+* started_at and ended_at are structured as date/time but read as character fields,
+* start_station_id and end_station_id read as character fields and appear to be a 
+mix of numeric and non-numeric characters,
+* station-related fields may be redundant and I might be able to reduce the overall
+size of data by organizing the data into three related tables: trip, trip_station and station.
+* a trip_station table would keep track of which station was used for start and end of each unique
+trip,
+* I need to check that each station has a unique id and a single value for latitude and
+longitude, and
+* I also need to check that start and end date/time are logical, i.e. no start dates occurring after end dates, etc.
+
+## Next Steps
+
+The next step in this project is to process data in preparation for analysis.

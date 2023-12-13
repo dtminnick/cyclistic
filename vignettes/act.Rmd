@@ -1,0 +1,27 @@
+---
+title: "Cyclistic Data Analysis Notebook: Act Phase"
+author: "Donnie Minnick"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+# output: rmarkdown::html_vignette
+# vignette: >
+#   %\VignetteIndexEntry{prepare}
+#   %\VignetteEngine{knitr::rmarkdown}
+#   %\VignetteEncoding{UTF-8}
+---
+
+## Context
+
+This notebook documents part of a data analysis I completed in the capstone experience for the Google Data Analytics Professional Certificate program on Coursera.
+
+You can find the Github repository for my work [here](https://github.com/dtminnick/cyclistic).
+
+## Act Phase
+
+This phase involves applying insights to solve the problem, make decisions and create opportunities.
+
+### Next Steps
+
+### Potential Additional Data & Insights
