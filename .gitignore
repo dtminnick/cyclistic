@@ -4,3 +4,5 @@
 .Ruserdata
 inst/doc
 data/source.rda
+inst/extdata/zip
+inst/extdata/source
