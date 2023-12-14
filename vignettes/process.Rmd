@@ -51,7 +51,6 @@ The data frame include `r ncol(source)` columns and `r nrow(source)` rows of dat
 The code below counts the number of missing values by column and presents the counts in a long-form table.
 
 ```{r missing_values}
-
 missing_values <- source %>%
   summarise_all(funs(sum(is.na(.)))) %>%
   tidyr::pivot_longer(cols = everything()) %>%
@@ -68,7 +67,7 @@ Station and location coordinates will be important to understanding where riders
 
 Before dropping these records, I'll explore the any patterns relative to bike and rider types. I'll start by creating a data frame that includes only those records with missing values.
 
-```{r na_rows}
+```{r get_na_rows}
 na_rows <- source %>% 
   filter(if_any(everything(), is.na))
 ```
@@ -133,7 +132,7 @@ The code chunk below makes the following updates to the data frame:
 -   Recoding ride type (Classic, Docked, Electric) and member type (Casual, Member).
 
 ```{r format_data_frame}
-trip <- source %>%
+source <- source %>%
   rename(ride_type = rideable_type,
          start_date_time = started_at,
          end_date_time = ended_at,
@@ -163,7 +162,7 @@ trip <- source %>%
 ### Start & End Dates
 
 ```{r check_dates}
-check_dates <- trip %>%
+check_dates <- source %>%
   select(start_date_time,
          end_date_time) %>%
   mutate(start_date = str_sub(start_date_time, 1, 10),
@@ -187,7 +186,7 @@ In the majority of cases, there is a one-day difference between the start and en
 I'm going to drop these rows and focus on same-day trips since that's the most common scenario in this data.
 
 ```{r filter_matching_dates}
-trip <- trip %>%
+source <- source %>%
   filter(str_sub(start_date_time, 1, 10) == str_sub(end_date_time, 1, 10))
 ```
 
@@ -196,7 +195,7 @@ trip <- trip %>%
 Check the data frame for rows with duration less than or equal to zero.
 
 ```{r check_duration}
-check_duration <- trip %>%
+check_duration <- source %>%
   filter(trip_duration_in_minutes <= 0)
 ```
 
@@ -205,14 +204,14 @@ There are `r nrow(check_duration)` rows in the data frame with a trip duration l
 I will drop these rows by selecting rows with a trip duration greater than zero.
 
 ```{r filter_duration}
-trip <- trip %>%
+source <- source %>%
   filter(trip_duration_in_minutes > 0)
 ```
 
 Check for outliers in the trip duration values with a box and whisker plot...
 
 ```{r plot_duration}
-ggplot(trip, aes(x = trip_duration_in_minutes)) +
+ggplot(source, aes(x = trip_duration_in_minutes)) +
   geom_histogram(binwidth = 10, fill = "skyblue", color = "black", alpha = 0.7) +
   labs(title = "Distribution: Trip Duration in Hours",
        x = "Values",
@@ -221,10 +220,10 @@ ggplot(trip, aes(x = trip_duration_in_minutes)) +
 
 There appear to be a significant number of rows with values close to zero as well as some extreme values exceeding 1-2 hours in duration. I'll start with the low values and examine more closely.
 
-```{r}
+```{r check_low_duration}
 breaks <- seq(0, 5, by = 1)
 
-low_values <- trip %>%
+low_values <- source %>%
   filter(trip_duration_in_minutes <= 5 ) %>%
   mutate(interval = cut(trip_duration_in_minutes, breaks = breaks, include.lowest = TRUE, right = TRUE)) %>%
   group_by(interval) %>%
@@ -234,24 +233,24 @@ low_values <- trip %>%
                       across(where(is.factor), ~"Total")))
 
 kable(low_values,
-      col.names = c("Interval (Hours)", "Row Count"),
+      col.names = c("Interval (Minutes)", "Row Count"),
       caption = "Duration",
       align = c("l", "r"))
 ```
 
 I think it makes sense to drop these rows since it's unlikely they represent the range of typical bicycle rides, i.e. where would someone ride in less than five minutes when they could probably walk the distance they could cover on a bicycle in that time?
 
-```{r}
-trip <- trip %>%
+```{r filter_low_duration}
+source <- source %>%
   filter(trip_duration_in_minutes > 5)
 ```
 
 Doing the same grouping for all other duration values...
 
-```{r}
+```{r check_high_duration}
 breaks <- seq(0, 1440, by = 240)
 
-high_values <- trip %>%
+high_values <- source %>%
   mutate(interval = cut(trip_duration_in_minutes, breaks = breaks, include.lowest = TRUE, right = TRUE)) %>%
   group_by(interval) %>%
   summarize(count = n()) %>%
@@ -269,8 +268,8 @@ So most trips have a duration within 480 minutes, or four hours. And there are 5
 
 I think it makes sense to drop these extreme values and focus on trips with duration of 960 minutes or less.
 
-```{r}
-trip <- trip %>%
+```{r filter_high_duration}
+source <- source %>%
   filter(trip_duration_in_minutes <= 960)
 ```
 
@@ -280,8 +279,8 @@ This leaves a range of duration values from `r min(source$trip_duration_in_minut
 
 Some station names are causing duplicates.  The following code addresses these 
 
-```{r}
-trip <- trip %>%
+```{r clean_station_names}
+source <- source %>%
   mutate(start_station_name = str_replace(start_station_name, "Public Rack - ", "")) %>%
   mutate(end_station_name = str_replace(end_station_name, "Public Rack - ", "")) %>%
   mutate(start_station_name = str_replace(start_station_name, "Public  Rack - ", "")) %>%
@@ -302,8 +301,8 @@ trip <- trip %>%
 
 The following code addresses variants of the same station names.
 
-```{r}
-trip <- trip %>%
+```{r update_station_names}
+source <- source %>%
   mutate(start_station_name = str_replace(start_station_name, "N Shore Channel Trail & Argyle Ave", "N Shore Channel Trail & Argyle St")) %>%
   mutate(end_station_name = str_replace(end_station_name, "N Shore Channel Trail & Argyle Ave", "N Shore Channel Trail & Argyle St")) %>%
   mutate(start_station_name = str_replace(start_station_name, "Ewing Ave & 106th St", "Ewing Ave & 106th St NW")) %>%
@@ -343,23 +342,32 @@ trip <- trip %>%
   mutate(start_station_name = str_replace(start_station_name, "Base - 2132 W Hubbard", "Base - 2132 W Hubbard Warehouse")) %>%
   mutate(end_station_name = str_replace(end_station_name, "Base - 2132 W Hubbard", "Base - 2132 W Hubbard Warehouse")) %>%
   mutate(start_station_name = str_replace(start_station_name, "Base - 2132 W Hubbard", "Base - 2132 W Hubbard Warehouse")) %>%
-  mutate(end_station_name = str_replace(end_station_name, "Base - 2132 W Hubbard", "Base - 2132 W Hubbard Warehouse")) %>%
+  mutate(end_station_name = str_replace(end_station_name, "Base - 2132 W Hubbard", "Base - 2132 W Hubbard Warehouse"))
 ```
 
-### Latitude & Longitude
+Ensure the source data frame has distinct rows and save the cleaned data frame.  Cleaned data frame now contains `r ncol(source)` columns and `r nrow(source)` rows of data.
+
+```{r save_source}
+source <- source %>%
+  distinct_all()
+
+usethis::use_data(source, overwrite = TRUE)
+```
 
 ## Data Model
 
 ### Trip
 
 ```{r create_trip}
-usethis::use_data(trip, overwrite = TRUE)
+
 ```
 
 ### Station
 
+The following code chunk captures the start and end stations in separate data frames and combines them into a single table.  It also adds a unique station id since the original ids are not unique to a given station.  The original id is retained for reference purposes.
+
 ```{r create_station}
-start_stations <- trip %>%
+start_stations <- source %>%
   select(start_station_id,
          start_station_name,
          start_latitude,
@@ -375,7 +383,7 @@ start_stations <- trip %>%
   distinct_all() %>%
   arrange(station_id)
 
-end_stations <- trip %>%
+end_stations <- source %>%
   select(end_station_id,
          end_station_name,
          end_latitude,
@@ -406,24 +414,80 @@ station <- rbind(start_stations, end_stations) %>%
          latitude,
          longitude) %>%
   distinct_all()
+```
 
-write.csv(station, "../inst/extdata/output/station.csv")
+#### Latitude & Longitude
 
-usethis::use_data(station, overwrite = TRUE)
+##### Issue
+
+I identified an issue with the geolocation coordinates for stations, i.e. there are multiple values of latitude and longitude for the same stations.  Ideally, the source data would include a single, consistent set of coordinates for each station, but this is not the case.  There are sophisticated methods of combining the coordinates into a single set that take into account the spatial distribution and density of the coordinates.  However, for this analysis, I prefer to use a simple average of the coordinates.
+
+Taking a simple average of latitude and longitude coordinates is a straightforward method, but it may introduce inaccuracies in certain situations due to the spherical nature of the Earth. I noted potential issues with a  simple average.
+
+###### Distortion Near Poles
+
+Latitude lines near the poles are very close together compared to those near the equator. A simple average of latitude values does not account for this distortion, potentially leading to inaccuracies in representing the central point.
+
+###### Longitude Convergence at Poles
+
+Lines of longitude converge at the poles. Averaging longitudes without considering this convergence can lead to inaccurate results.
+
+###### Wraparound Issues
+
+Averaging longitudes without accounting for the wraparound at the international date line (180 degrees longitude) may result in a representative point that is far from the actual location.
+
+###### Influence of Outliers
+
+Outliers or extreme values in the dataset can heavily influence the simple average, pulling it towards those outliers and potentially skewing the representative point.
+
+###### Misrepresentation of Area
+
+Averaging latitude and longitude coordinates does not consider the spatial distribution of points. 
+
+In regions with unevenly distributed coordinates, the average may not accurately represent the central point of the area.
+
+My main purpose in using geolocation coordinates is to generate a map of the most heavily used areas of the city. I believe these issues will not significantly impact this analysis due to location, i.e. Chicago is not located near the poles or the international date line.  I do need to consider the impact of outliers and point distribution on average values.  
+
+### Addressing Stations
+
+#### Add New Station Ids
+
+Add new station ids to the source data frame with a join.
+
+```{r add_station_ids}
+station_ids <- station %>%
+  select(station_id,
+         original_station_id) 
+
+source <- source %>%
+  rename(original_station_id = start_station_id)
+         
+source <- left_join(source, station_ids, by = "original_station_id") %>%
+  rename(original_start_station_id = original_station_id,
+         start_station_id = station_id)
+
+source <- source %>%
+  rename(original_station_id = end_station_id)
+         
+source <- left_join(source, station_ids, by = "original_station_id") %>%
+  rename(original_end_station_id = original_station_id,
+         end_station_id = station_id)
 ```
 
 ### Trip Station
 
 ```{r create_trip_station}
-trip_station_start <- trip %>%
+trip_station_start <- source %>%
   select(ride_id, start_station_id) %>%
   mutate(station_type = "Start") %>%
-  rename(station_id = start_station_id)
+  rename(station_id = start_station_id) %>%
+  distinct_all()
 
-trip_station_end <- trip %>%
+trip_station_end <- source %>%
   select(ride_id, end_station_id) %>%
   mutate(station_type = "End") %>%
-  rename(station_id = end_station_id)
+  rename(station_id = end_station_id) %>%
+  distinct_all()
 
 trip_station <- rbind(trip_station_start, trip_station_end)
 
@@ -432,16 +496,57 @@ write.csv(trip_station, "../inst/extdata/output/trip_station.csv")
 usethis::use_data(trip_station, overwrite = TRUE)
 ```
 
+```{r}
+trip <- source %>%
+  select(ride_id,
+         ride_type,
+         start_date_time,
+         end_date_time,
+         member_type,
+         trip_duration_in_minutes,
+         trip_type_id,
+         start_hour_of_day,
+         end_hour_of_day) %>%
+  rename(ride_type_id = ride_type,
+         member_type_id = member_type) %>%
+  mutate(ride_type_id = case_when(ride_type_id == "Classic" ~ 1,
+                                  ride_type_id == "Docked" ~ 2,
+                                  ride_type_id == "Electric" ~ 3),
+         ride_type_id = as.numeric(ride_type_id),
+         member_type_id = case_when(member_type_id == "Casual" ~ 1,
+                                    member_type_id == "Member" ~ 2),
+         member_type_id = as.numeric(member_type_id)) %>%
+  distinct_all()
+
+trip <- source
+
+write.csv(trip, "../inst/extdata/output/trip.csv")
+
+usethis::use_data(trip, overwrite = TRUE)
+```
+
+```{r}
+station <- station %>%
+  select(-original_station_id) %>%
+  group_by(station_id, station_name) %>%
+  summarise(latitude = mean(latitude),
+            longitude = mean(longitude)) 
+
+write.csv(station, "../inst/extdata/output/station.csv")
+
+usethis::use_data(station, overwrite = TRUE)
+```
+
 ### Ride Type
 
 The following code chunk creates a ride type table.
 
 ```{r create_ride_type}
-ride_type <- trip %>%
+ride_type <- source %>%
   group_by(ride_type) %>%
   summarise(count = n())
 
-ride_type <- trip %>%
+ride_type <- source %>%
   distinct(ride_type) %>%
   arrange(ride_type) %>%
   mutate(ride_type_id = row_number()) %>%
@@ -456,16 +561,16 @@ usethis::use_data(ride_type, overwrite = TRUE)
 ### Member Type
 
 ```{r create_member_type}
-member_type <- trip %>%
+member_type <- source %>%
   group_by(member_type) %>%
-  summarise(count = n()); member_type
+  summarise(count = n())
 
-member_type <- trip %>%
+member_type <- source %>%
   distinct(member_type) %>%
   arrange(member_type) %>%
   mutate(member_type_id = row_number()) %>%
   select(member_type_id,
-         member_type); member_type
+         member_type)
 
 write.csv(member_type, "../inst/extdata/output/member_type.csv")
 
@@ -478,7 +583,7 @@ usethis::use_data(member_type, overwrite = TRUE)
 trip_type <- data.frame(trip_type_id = c(1, 2),
                         trip_type = c("Point-to-Point", "Loop"))
 
-write.csv(trip_type, "./inst/extdata/output/trip_type.csv")
+write.csv(trip_type, "../inst/extdata/output/trip_type.csv")
 
 usethis::use_data(trip_type, overwrite = TRUE)
 ```
@@ -512,7 +617,9 @@ usethis::use_data(calendar, overwrite = TRUE)
 
 ### Destination
 
+Create destination table.  Table contains...
 
+Purpose is to compare trips to popular destinations in the city.
 
 ```{r create_destination}
 destination <- read.delim("../inst/extdata/source/destination.txt",
