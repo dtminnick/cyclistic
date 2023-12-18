@@ -128,7 +128,7 @@ On inspection, source files appear to be consistent in structure and can be comb
 The following code reads and combines the source files into a single data frame for purposes of review, cleaning and transformation.  The data frame is saved in the project as an .rda file.  The code also row counts of input and output files for comparison.
 
 ```{r combine_source_files, messages = FALSE}
-source_files <- list.files("../inst/extdata/source", full.names = TRUE)
+source_files <- list.files("../inst/extdata/source", full.names = TRUE, pattern = "\\.csv$")
 
 source <- data.frame()
 
