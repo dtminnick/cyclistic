@@ -67,10 +67,11 @@ kable(files,
                     "File Size (Mb)",
                     "Date Last Modified"),
       caption = "Cyclistic Data Files",
+      format.args = list(big.mark = ","),
       align = c("l", "l", "r", "r"))
 ```
 
-The bucket contains `r nrow(files)` zip files with last modified dates ranging from `r min(files$date_last_modified)` to `r max(files$date_last_modified)`.
+The bucket contains `r format(nrow(files), big.mark = ",", scientific = FALSE)` zip files with last modified dates ranging from `r min(files$date_last_modified)` to `r max(files$date_last_modified)`.
 
 There are some inconsistencies in files names and time periods covered, e.g. some monthly and others quarterly.  Data is available for January 2013 through November 2023.
 
@@ -132,10 +133,11 @@ source_files <- list.files("../inst/extdata/source", full.names = TRUE, pattern 
 
 source <- data.frame()
 
-recon <- data.frame(file = character(0),
+recon <- data.frame(input_file = character(0),
                     count = integer(0),
                     cumulative_count = integer(0),
-                    source_count = integer(0))
+                    source_count = integer(0),
+                    file_size = numeric(0))
 
 cumulative_count <- 0
 
@@ -157,20 +159,21 @@ for(i in 1:length(source_files)) {
   
   file_size <- file.info(source_files[i])$size / 1e+06
   
-  recon <- rbind(recon, c(source_files[i], 
-                          count, 
-                          cumulative_count, 
-                          source_count,
-                          file_size))
+  recon <- recon %>%
+    add_row(input_file = source_files[i],
+            count = count,
+            cumulative_count = cumulative_count,
+            source_count = source_count,
+            file_size = file_size)
 
 }
 
 kable(recon,
       col.names = c("Input File",
-                    "Row Count",
-                    "Cumulative Row Count",
+                    "Input File Count",
+                    "Cumulative Input File Count",
                     "Output File Count",
-                    "File Size (Mb)"),
+                    "Input File Size (Mb)"),
       caption = "File Reconciliation",
       format.args = list(big.mark = ","),
       align = c("l", "r", "r", "r", "r"))
@@ -184,7 +187,7 @@ I will explore whether I can model data to reduce overall size as part of next p
 
 ### Data Structure
 
-The combined data frame includes `r ncol(source)` columns and `r nrow(source)` rows of data.  The table below shows the structure of the data frame.
+The combined data frame includes `r format(ncol(source), big.mark = ",", scientific = FALSE)` columns and `r format(nrow(source), big.mark = ",", scientific = FALSE)` rows of data.  The table below shows the structure of the data frame.
 
 ```{r view_data_structure}
 structure <- data.frame(variable = names(source),
@@ -193,8 +196,11 @@ structure <- data.frame(variable = names(source),
                         row.names = NULL)
 
 kable(structure,
+      col.names = c("Variable",
+                    "Type",
+                    "First Values"),
       caption = "Source Data Structure",
-      col.names = c("Variable", "Class", "First Values"))
+      format.args = list(big.mark = ","))
 ```
 
 Some initial observations about the data frame:
