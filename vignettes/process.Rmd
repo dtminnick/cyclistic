@@ -38,101 +38,61 @@ if(any(installed_packages == FALSE)) {
 invisible(lapply(packages, library, character.only = TRUE))
 ```
 
-The code chunk below loads the source data.
+The code chunk below loads the source data gathered in the prepare phase of this project.
 
 ```{r load_source_data}
 load("C:/R/Packages/cyclistic/data/source.rda")
+
+trip <- source
 ```
 
-The data frame include `r ncol(source)` columns and `r nrow(source)` rows of data.
+The data frame contains `r format(ncol(source), big.mark = ",", scientific = FALSE)` columns and `r format(nrow(source), big.mark = ",", scientific = FALSE)` rows of data.
 
 ### Missing Values
+
+I'll start by checking for missing values.
 
 The code below counts the number of missing values by column and presents the counts in a long-form table.
 
 ```{r missing_values}
-missing_values <- source %>%
+missing_values <- trip %>%
   summarise_all(funs(sum(is.na(.)))) %>%
-  tidyr::pivot_longer(cols = everything()) %>%
+  pivot_longer(cols = everything()) %>%
   rename(column_name = name,
          row_count = value)
 
 kable(missing_values,
       col.names = c("Column Name", "Row Count"),
       caption = "Missing Values by Column",
+      format.args = list(big.mark = ","),
       align = c("l", "r"))
 ```
 
-Station and location coordinates will be important to understanding where riders start and end their rides. Records with missing station or location coordinates will not be useful here. 
-
-Before dropping these records, I'll explore the any patterns relative to bike and rider types. I'll start by creating a data frame that includes only those records with missing values.
-
-```{r get_na_rows}
-na_rows <- source %>% 
-  filter(if_any(everything(), is.na))
-```
-
-There are `r nrow(na_rows)` rows of data with missing information.
-
-Then I'll summarize the data frame, showing the missing values by bike type.
-
-```{r na_rows_by_bike_type}
-na_rows_by_bike_type <- na_rows %>%
-  group_by(rideable_type) %>%
-  summarize(count = n()) %>%
-  arrange(desc(count)) %>%
-  mutate(percent = round(count / sum(count), 3))
-
-kable(na_rows_by_bike_type,
-      col.names = c("Bike Type", "Row Count", "Percent"),
-      caption = "Missing Values by Bike Type",
-      align = c("l", "r", "r"))
-```
-
-The majority of rows with missing values are for records with a bicycle type of 'electric_bike'.
-
-The following code shows the same data by member type.
-
-```{r na_rows_by_rider_type}
-na_rows_by_rider_type <- na_rows %>%
-  group_by(member_casual) %>%
-  summarize(count = n()) %>%
-  arrange(desc(count)) %>%
-  mutate(percent = round(count / sum(count), 3))
-
-kable(na_rows_by_rider_type,
-      col.names = c("Rider Type", "Row Count", "Percent"),
-      caption = "Missing Values by Rider Type",
-      align = c("l", "r", "r"))
-```
-
-Based on this summary table, there isn't any connection between rider type and the missing data.
-
-Since it's not possible to impute these missing values, I will drop these rows from the source data frame.
+There are rows with missing location data, including station name, id and location coordinates.  Since the missing data can't be imputed, I will omit these rows from the data frame.
 
 ```{r drop_nas}
-source <- source %>%
+trip <- trip %>%
   na.omit()
 ```
 
-Dropping these rows reduces the overall number of rows in the source data to `r nrow(source)` rows for analysis.
+Dropping these rows reduces the overall number of rows in the source data to `r format(nrow(source), big.mark = ",", scientific = FALSE)` rows for analysis.
 
 ### Data Transformations
 
 To facilitate additional cleaning, will format columns in the source data frame and ensure there are no duplicate rows in the data frame.
 
 The code chunk below makes the following updates to the data frame:
-
--   Rename columns,
--   Format latitude and longitude to number with five positions following the decimal,
--   Format start and end date/time as Date objects,
--   Create a trip duration variable by dividing the difference between the start and end date times by 60,
--   Creating a trip type variable that is coded as 'loop' if the start and end stations are the same or 'point-to-point' if they are not,
--   Creating variables to capture the start and end hour for each trip, and
--   Recoding ride type (Classic, Docked, Electric) and member type (Casual, Member).
+* Renames columns,
+* Formats latitude and longitude to number with five positions following the decimal,
+* Formats start and end date/time as Date objects,
+* Creates a trip duration variable by dividing the difference between the start and end date times by 60,
+* Creates a trip type variable that is coded as 'loop' if the start and end stations are the same or 'point-to-point' if they are not,
+* Creates variables to capture the start and end hour for each trip, and
+* Recodes ride type (Classic, Docked, Electric) and member type (Casual, Member), and
+* Creates a day of week variable based on the the start date/time.
 
 ```{r format_data_frame}
-source <- source %>%
+trip <- trip %>%
   rename(ride_type = rideable_type,
          start_date_time = started_at,
          end_date_time = ended_at,
@@ -148,139 +108,43 @@ source <- source %>%
          start_date_time = lubridate::ymd_hms(start_date_time),
          end_date_time = lubridate::ymd_hms(end_date_time),
          trip_duration_in_minutes = round(as.numeric((end_date_time - start_date_time) / 60), 2),
-         trip_type_id = if_else(start_station_name == end_station_name, 2, 1),
+         trip_type = if_else(start_station_name == end_station_name, "Loop", "Point-to-Point"),
          start_hour_of_day = lubridate::hour(start_date_time),
          end_hour_of_day = lubridate::hour(end_date_time),
          ride_type = case_when(ride_type == "classic_bike" ~ "Classic",
                                ride_type == "docked_bike" ~ "Docked",
                                ride_type == "electric_bike" ~ "Electric"),
          member_type = case_when(member_type == "casual" ~ "Casual",
-                                 member_type == "member" ~ "Member"))
-
+                                 member_type == "member" ~ "Member"),
+         day_of_week = lubridate::wday(start_date_time, TRUE, TRUE))
 ```
 
-### Start & End Dates
+### Same-Day Trips
 
-```{r check_dates}
-check_dates <- source %>%
-  select(start_date_time,
-         end_date_time) %>%
-  mutate(start_date = str_sub(start_date_time, 1, 10),
-         end_date = str_sub(end_date_time, 1, 10),
-         start_date = as.Date(start_date),
-         end_date = as.Date(end_date)) %>%
-  filter(start_date != end_date) %>%
-  mutate(difference_in_days = as.numeric(end_date - start_date)) %>%
-  group_by(difference_in_days) %>%
-  summarise(count = n()) %>%
-  arrange(desc(count))
+I'm going to filter the data frame to include only those rows that are same-day trips since that's the most common scenario in this data.
 
-kable(check_dates,
-      col.names = c("Difference (Days)", "Row Count"),
-      caption = "Date Differences Grouped by Row Count",
-      align = c("l", "r"))
-```
-
-In the majority of cases, there is a one-day difference between the start and end dates of trips in this subset. In addition, there are 54 rows where the difference ranges from two to twenty four days.
-
-I'm going to drop these rows and focus on same-day trips since that's the most common scenario in this data.
-
-```{r filter_matching_dates}
-source <- source %>%
+```{r filter_by_dates}
+trip <- trip %>%
   filter(str_sub(start_date_time, 1, 10) == str_sub(end_date_time, 1, 10))
 ```
 
 ### Trip Duration
 
-Check the data frame for rows with duration less than or equal to zero.
+There are some rows with a trip duration of zero or negative values.  There are also rows with durations of close to 24 hours.  I will filter the data frame to include trips with a duration in the range of 5-960 minutes, i.e. eight hours.
 
-```{r check_duration}
-check_duration <- source %>%
-  filter(trip_duration_in_minutes <= 0)
+```{r filter_by_duration}
+trip <- trip %>%
+  filter(trip_duration_in_minutes >= 5 & trip_duration_in_minutes <= 960)
 ```
 
-There are `r nrow(check_duration)` rows in the data frame with a trip duration less than or equal to zero. In other words, in these cases, the start time is the same as the end time, or occurs after the end time, which doesn't make sense.
-
-I will drop these rows by selecting rows with a trip duration greater than zero.
-
-```{r filter_duration}
-source <- source %>%
-  filter(trip_duration_in_minutes > 0)
-```
-
-Check for outliers in the trip duration values with a box and whisker plot...
-
-```{r plot_duration}
-ggplot(source, aes(x = trip_duration_in_minutes)) +
-  geom_histogram(binwidth = 10, fill = "skyblue", color = "black", alpha = 0.7) +
-  labs(title = "Distribution: Trip Duration in Hours",
-       x = "Values",
-       y = "Frequency")
-```
-
-There appear to be a significant number of rows with values close to zero as well as some extreme values exceeding 1-2 hours in duration. I'll start with the low values and examine more closely.
-
-```{r check_low_duration}
-breaks <- seq(0, 5, by = 1)
-
-low_values <- source %>%
-  filter(trip_duration_in_minutes <= 5 ) %>%
-  mutate(interval = cut(trip_duration_in_minutes, breaks = breaks, include.lowest = TRUE, right = TRUE)) %>%
-  group_by(interval) %>%
-  summarize(count = n()) %>%
-  bind_rows(summarise(.,
-                      across(where(is.numeric), sum),
-                      across(where(is.factor), ~"Total")))
-
-kable(low_values,
-      col.names = c("Interval (Minutes)", "Row Count"),
-      caption = "Duration",
-      align = c("l", "r"))
-```
-
-I think it makes sense to drop these rows since it's unlikely they represent the range of typical bicycle rides, i.e. where would someone ride in less than five minutes when they could probably walk the distance they could cover on a bicycle in that time?
-
-```{r filter_low_duration}
-source <- source %>%
-  filter(trip_duration_in_minutes > 5)
-```
-
-Doing the same grouping for all other duration values...
-
-```{r check_high_duration}
-breaks <- seq(0, 1440, by = 240)
-
-high_values <- source %>%
-  mutate(interval = cut(trip_duration_in_minutes, breaks = breaks, include.lowest = TRUE, right = TRUE)) %>%
-  group_by(interval) %>%
-  summarize(count = n()) %>%
-  bind_rows(summarise(.,
-                      across(where(is.numeric), sum),
-                      across(where(is.factor), ~"Total")))
-
-kable(high_values,
-      col.names = c("Interval (Minutes)", "Row Count"),
-      caption = "Duration",
-      align = c("l", "r"))
-```
-
-So most trips have a duration within 480 minutes, or four hours. And there are 51 trips with a duration beyond eight hours. The longest trip is 1,408 minutes, which is close to a full day.
-
-I think it makes sense to drop these extreme values and focus on trips with duration of 960 minutes or less.
-
-```{r filter_high_duration}
-source <- source %>%
-  filter(trip_duration_in_minutes <= 960)
-```
-
-This leaves a range of duration values from `r min(source$trip_duration_in_minutes` to `r source$trip_duration_in_minutes` minutes.
+This leaves a range of duration values from `r min(source$trip_duration_in_minutes)` to `r max(source$trip_duration_in_minutes)` minutes.
 
 ### Station Names
 
-Some station names are causing duplicates.  The following code addresses these 
+Some station names are causing duplicates.  The following code addresses them by cleaning the station names.
 
 ```{r clean_station_names}
-source <- source %>%
+trip <- trip %>%
   mutate(start_station_name = str_replace(start_station_name, "Public Rack - ", "")) %>%
   mutate(end_station_name = str_replace(end_station_name, "Public Rack - ", "")) %>%
   mutate(start_station_name = str_replace(start_station_name, "Public  Rack - ", "")) %>%
@@ -299,296 +163,152 @@ source <- source %>%
   mutate(end_station_name = str_replace(end_station_name, " (Temp)", ""))
 ```
 
-The following code addresses variants of the same station names.
+And the following code addresses variants of the same station names.
 
 ```{r update_station_names}
-source <- source %>%
-  mutate(start_station_name = str_replace(start_station_name, "N Shore Channel Trail & Argyle Ave", "N Shore Channel Trail & Argyle St")) %>%
-  mutate(end_station_name = str_replace(end_station_name, "N Shore Channel Trail & Argyle Ave", "N Shore Channel Trail & Argyle St")) %>%
-  mutate(start_station_name = str_replace(start_station_name, "Ewing Ave & 106th St", "Ewing Ave & 106th St NW")) %>%
-  mutate(end_station_name = str_replace(end_station_name, "Ewing Ave & 106th St", "Ewing Ave & 106th St NW")) %>%
-  mutate(start_station_name = str_replace(start_station_name, "Ewing Ave & 96th St", "Ewing Ave & 96th St N")) %>%
-  mutate(end_station_name = str_replace(end_station_name, "Ewing Ave & 96th St", "Ewing Ave & 96th St N")) %>%
-  mutate(start_station_name = str_replace(start_station_name, "Mt Greenwood Library - North", "Mt Greenwood Library N")) %>%
-  mutate(end_station_name = str_replace(end_station_name, "Mt Greenwood Library - North", "Mt Greenwood Library N")) %>%
-  mutate(start_station_name = str_replace(start_station_name, "Kedzie & 103rd St - West", "Kedzie & 103rd St - W")) %>%
-  mutate(end_station_name = str_replace(end_station_name, "Kedzie & 103rd St - West", "Kedzie & 103rd St - W")) %>%
-  mutate(start_station_name = str_replace(start_station_name, "Lafayette Ave & 87th St SW", "Lafayette Ave & 87th St - SW")) %>%
-  mutate(end_station_name = str_replace(end_station_name, "Lafayette Ave & 87th St SW", "Lafayette Ave & 87th St - SW")) %>%
-  mutate(start_station_name = str_replace(start_station_name, "63rd & Western Ave - south corner", "63rd & Western Ave S")) %>%
-  mutate(end_station_name = str_replace(end_station_name, "63rd & Western Ave - south corner", "63rd & Western Ave S")) %>%
-  mutate(start_station_name = str_replace(start_station_name, "63rd & Western Ave - north corner", "63rd & Western Ave N")) %>%
-  mutate(end_station_name = str_replace(end_station_name, "63rd & Western Ave - north corner", "63rd & Western Ave N")) %>%
-  mutate(start_station_name = str_replace(start_station_name, "Kedzie Ave & 61st Pl", "Kedzie Ave & 61st Pl E")) %>%
-  mutate(end_station_name = str_replace(end_station_name, "Kedzie Ave & 61st Pl", "Kedzie Ave & 61st Pl E")) %>%
-  mutate(start_station_name = str_replace(start_station_name, "Prairie Ave & 47th St ", "Prairie Ave & 47th St")) %>%
-  mutate(end_station_name = str_replace(end_station_name, "Prairie Ave & 47th St ", "Prairie Ave & 47th St")) %>%
-  mutate(start_station_name = str_replace(start_station_name, "Woodlawn Ave & 63rd St - SE", "Woodlawn Ave & 63rd St S")) %>%
-  mutate(end_station_name = str_replace(end_station_name, "Woodlawn Ave & 63rd St - SE", "Woodlawn Ave & 63rd St S")) %>%
-  mutate(start_station_name = str_replace(start_station_name, "Woodlawn Ave & 63rd St - NE", "Woodlawn Ave & 63rd St N")) %>%
-  mutate(end_station_name = str_replace(end_station_name, "Woodlawn Ave & 63rd St - NE", "Woodlawn Ave & 63rd St N")) %>%
-  mutate(start_station_name = str_replace(start_station_name, "Prairie Ave & Garfield Blvd", "Prairie Ave & Garfield Blvd N")) %>%
-  mutate(end_station_name = str_replace(end_station_name, "Prairie Ave & Garfield Blvd", "Prairie Ave & Garfield Blvd N")) %>%
-  mutate(start_station_name = str_replace(start_station_name, "Kedvale Ave & 63rd St", "Kedvale Ave & 63rd St W")) %>%
-  mutate(end_station_name = str_replace(end_station_name, "Kedvale Ave & 63rd St", "Kedvale Ave & 63rd St W")) %>%
-  mutate(start_station_name = str_replace(start_station_name, "Kedzie Ave &amp; 62nd Pl", "Kedzie Ave & 62nd Pl")) %>%
-  mutate(end_station_name = str_replace(end_station_name, "Kedzie Ave &amp; 62nd Pl", "Kedzie Ave & 62nd Pl")) %>%
-  mutate(start_station_name = str_replace(start_station_name, "Kedzie Ave & 61st Pl", "Kedzie Ave & 61st Pl W")) %>%
-  mutate(end_station_name = str_replace(end_station_name, "Kedzie Ave & 61st Pl", "Kedzie Ave & 61st Pl W")) %>%
-  mutate(start_station_name = str_replace(start_station_name, "Bissell St & Armitage Ave*", "Bissell St & Armitage Ave")) %>%
-  mutate(end_station_name = str_replace(end_station_name, "Bissell St & Armitage Ave*", "Bissell St & Armitage Ave")) %>%
-  mutate(start_station_name = str_replace(start_station_name, "WestChi", "WEST CHI-WATSON")) %>%
-  mutate(end_station_name = str_replace(end_station_name, "WestChi", "WEST CHI-WATSON")) %>%
-  mutate(start_station_name = str_replace(start_station_name, "Base - 2132 W Hubbard", "Base - 2132 W Hubbard Warehouse")) %>%
-  mutate(end_station_name = str_replace(end_station_name, "Base - 2132 W Hubbard", "Base - 2132 W Hubbard Warehouse")) %>%
-  mutate(start_station_name = str_replace(start_station_name, "Base - 2132 W Hubbard", "Base - 2132 W Hubbard Warehouse")) %>%
-  mutate(end_station_name = str_replace(end_station_name, "Base - 2132 W Hubbard", "Base - 2132 W Hubbard Warehouse"))
+trip <- trip %>%
+  mutate(start_station_name = str_replace(start_station_name, 
+                                          "N Shore Channel Trail & Argyle Ave", 
+                                          "N Shore Channel Trail & Argyle St")) %>%
+  mutate(end_station_name = str_replace(end_station_name, 
+                                        "N Shore Channel Trail & Argyle Ave", 
+                                        "N Shore Channel Trail & Argyle St")) %>%
+  mutate(start_station_name = str_replace(start_station_name, 
+                                          "Ewing Ave & 106th St", 
+                                          "Ewing Ave & 106th St NW")) %>%
+  mutate(end_station_name = str_replace(end_station_name, 
+                                        "Ewing Ave & 106th St", 
+                                        "Ewing Ave & 106th St NW")) %>%
+  mutate(start_station_name = str_replace(start_station_name, 
+                                          "Ewing Ave & 96th St", 
+                                          "Ewing Ave & 96th St N")) %>%
+  mutate(end_station_name = str_replace(end_station_name, 
+                                        "Ewing Ave & 96th St", 
+                                        "Ewing Ave & 96th St N")) %>%
+  mutate(start_station_name = str_replace(start_station_name, 
+                                          "Mt Greenwood Library - North", 
+                                          "Mt Greenwood Library N")) %>%
+  mutate(end_station_name = str_replace(end_station_name, 
+                                        "Mt Greenwood Library - North", 
+                                        "Mt Greenwood Library N")) %>%
+  mutate(start_station_name = str_replace(start_station_name, 
+                                          "Kedzie & 103rd St - West", 
+                                          "Kedzie & 103rd St - W")) %>%
+  mutate(end_station_name = str_replace(end_station_name, 
+                                        "Kedzie & 103rd St - West", 
+                                        "Kedzie & 103rd St - W")) %>%
+  mutate(start_station_name = str_replace(start_station_name, 
+                                          "Lafayette Ave & 87th St SW", 
+                                          "Lafayette Ave & 87th St - SW")) %>%
+  mutate(end_station_name = str_replace(end_station_name, 
+                                        "Lafayette Ave & 87th St SW", 
+                                        "Lafayette Ave & 87th St - SW")) %>%
+  mutate(start_station_name = str_replace(start_station_name, 
+                                          "63rd & Western Ave - south corner", 
+                                          "63rd & Western Ave S")) %>%
+  mutate(end_station_name = str_replace(end_station_name, 
+                                        "63rd & Western Ave - south corner", 
+                                        "63rd & Western Ave S")) %>%
+  mutate(start_station_name = str_replace(start_station_name, 
+                                          "63rd & Western Ave - north corner", 
+                                          "63rd & Western Ave N")) %>%
+  mutate(end_station_name = str_replace(end_station_name, 
+                                        "63rd & Western Ave - north corner", 
+                                        "63rd & Western Ave N")) %>%
+  mutate(start_station_name = str_replace(start_station_name, 
+                                          "Kedzie Ave & 61st Pl", 
+                                          "Kedzie Ave & 61st Pl E")) %>%
+  mutate(end_station_name = str_replace(end_station_name, 
+                                        "Kedzie Ave & 61st Pl", 
+                                        "Kedzie Ave & 61st Pl E")) %>%
+  mutate(start_station_name = str_replace(start_station_name, 
+                                          "Prairie Ave & 47th St ", 
+                                          "Prairie Ave & 47th St")) %>%
+  mutate(end_station_name = str_replace(end_station_name, 
+                                        "Prairie Ave & 47th St ", 
+                                        "Prairie Ave & 47th St")) %>%
+  mutate(start_station_name = str_replace(start_station_name, 
+                                          "Woodlawn Ave & 63rd St - SE", 
+                                          "Woodlawn Ave & 63rd St S")) %>%
+  mutate(end_station_name = str_replace(end_station_name, 
+                                        "Woodlawn Ave & 63rd St - SE", 
+                                        "Woodlawn Ave & 63rd St S")) %>%
+  mutate(start_station_name = str_replace(start_station_name, 
+                                          "Woodlawn Ave & 63rd St - NE", 
+                                          "Woodlawn Ave & 63rd St N")) %>%
+  mutate(end_station_name = str_replace(end_station_name, 
+                                        "Woodlawn Ave & 63rd St - NE", 
+                                        "Woodlawn Ave & 63rd St N")) %>%
+  mutate(start_station_name = str_replace(start_station_name, 
+                                          "Prairie Ave & Garfield Blvd", 
+                                          "Prairie Ave & Garfield Blvd N")) %>%
+  mutate(end_station_name = str_replace(end_station_name, 
+                                        "Prairie Ave & Garfield Blvd", 
+                                        "Prairie Ave & Garfield Blvd N")) %>%
+  mutate(start_station_name = str_replace(start_station_name, 
+                                          "Kedvale Ave & 63rd St", 
+                                          "Kedvale Ave & 63rd St W")) %>%
+  mutate(end_station_name = str_replace(end_station_name, 
+                                        "Kedvale Ave & 63rd St", 
+                                        "Kedvale Ave & 63rd St W")) %>%
+  mutate(start_station_name = str_replace(start_station_name, 
+                                          "Kedzie Ave &amp; 62nd Pl", 
+                                          "Kedzie Ave & 62nd Pl")) %>%
+  mutate(end_station_name = str_replace(end_station_name, 
+                                        "Kedzie Ave &amp; 62nd Pl", 
+                                        "Kedzie Ave & 62nd Pl")) %>%
+  mutate(start_station_name = str_replace(start_station_name, 
+                                          "Kedzie Ave & 61st Pl", 
+                                          "Kedzie Ave & 61st Pl W")) %>%
+  mutate(end_station_name = str_replace(end_station_name, 
+                                        "Kedzie Ave & 61st Pl", 
+                                        "Kedzie Ave & 61st Pl W")) %>%
+  mutate(start_station_name = str_replace(start_station_name, 
+                                          "Bissell St & Armitage Ave*", 
+                                          "Bissell St & Armitage Ave")) %>%
+  mutate(end_station_name = str_replace(end_station_name, 
+                                        "Bissell St & Armitage Ave*", 
+                                        "Bissell St & Armitage Ave")) %>%
+  mutate(start_station_name = str_replace(start_station_name, 
+                                          "WestChi", 
+                                          "WEST CHI-WATSON")) %>%
+  mutate(end_station_name = str_replace(end_station_name, 
+                                        "WestChi", 
+                                        "WEST CHI-WATSON")) %>%
+  mutate(start_station_name = str_replace(start_station_name, 
+                                          "Base - 2132 W Hubbard", 
+                                          "Base - 2132 W Hubbard Warehouse")) %>%
+  mutate(end_station_name = str_replace(end_station_name, 
+                                        "Base - 2132 W Hubbard", 
+                                        "Base - 2132 W Hubbard Warehouse")) %>%
+  mutate(start_station_name = str_replace(start_station_name, 
+                                          "Base - 2132 W Hubbard", 
+                                          "Base - 2132 W Hubbard Warehouse")) %>%
+  mutate(end_station_name = str_replace(end_station_name, 
+                                        "Base - 2132 W Hubbard", 
+                                        "Base - 2132 W Hubbard Warehouse"))
 ```
 
-Ensure the source data frame has distinct rows and save the cleaned data frame.  Cleaned data frame now contains `r ncol(source)` columns and `r nrow(source)` rows of data.
+Ensure data frame has distinct rows.
 
-```{r save_source}
-source <- source %>%
+```{r remove_duplicate_rows}
+trip <- trip %>% 
   distinct_all()
-
-usethis::use_data(source, overwrite = TRUE)
 ```
 
-## Data Model
-
-### Trip
-
-```{r create_trip}
-
-```
-
-### Station
-
-The following code chunk captures the start and end stations in separate data frames and combines them into a single table.  It also adds a unique station id since the original ids are not unique to a given station.  The original id is retained for reference purposes.
-
-```{r create_station}
-start_stations <- source %>%
-  select(start_station_id,
-         start_station_name,
-         start_latitude,
-         start_longitude) %>%
-  rename(station_id = start_station_id,
-         station_name = start_station_name,
-         latitude = start_latitude,
-         longitude = start_longitude) %>%
-  group_by(station_id,
-           station_name) %>%
-  summarise(latitude = max(latitude),
-            longitude = max(longitude)) %>%
-  distinct_all() %>%
-  arrange(station_id)
-
-end_stations <- source %>%
-  select(end_station_id,
-         end_station_name,
-         end_latitude,
-         end_longitude) %>%
-  rename(station_id = end_station_id,
-         station_name = end_station_name,
-         latitude = end_latitude,
-         longitude = end_longitude) %>%
-  group_by(station_id,
-           station_name) %>%
-  summarise(latitude = max(latitude),
-            longitude = max(longitude)) %>%
-  distinct_all() %>%
-  arrange(station_id)
-
-station <- rbind(start_stations, end_stations) %>%
-  group_by(station_id,
-           station_name) %>%
-  summarise(latitude = max(latitude),
-            longitude = max(longitude)) %>%
-  rename(original_station_id = station_id) %>%
-  arrange(original_station_id) %>%
-  ungroup() %>%
-  mutate(station_id = row_number()) %>%
-  select(station_id,
-         original_station_id,
-         station_name,
-         latitude,
-         longitude) %>%
-  distinct_all()
-```
-
-#### Latitude & Longitude
-
-##### Issue
-
-I identified an issue with the geolocation coordinates for stations, i.e. there are multiple values of latitude and longitude for the same stations.  Ideally, the source data would include a single, consistent set of coordinates for each station, but this is not the case.  There are sophisticated methods of combining the coordinates into a single set that take into account the spatial distribution and density of the coordinates.  However, for this analysis, I prefer to use a simple average of the coordinates.
-
-Taking a simple average of latitude and longitude coordinates is a straightforward method, but it may introduce inaccuracies in certain situations due to the spherical nature of the Earth. I noted potential issues with a  simple average.
-
-###### Distortion Near Poles
-
-Latitude lines near the poles are very close together compared to those near the equator. A simple average of latitude values does not account for this distortion, potentially leading to inaccuracies in representing the central point.
-
-###### Longitude Convergence at Poles
-
-Lines of longitude converge at the poles. Averaging longitudes without considering this convergence can lead to inaccurate results.
-
-###### Wraparound Issues
-
-Averaging longitudes without accounting for the wraparound at the international date line (180 degrees longitude) may result in a representative point that is far from the actual location.
-
-###### Influence of Outliers
-
-Outliers or extreme values in the dataset can heavily influence the simple average, pulling it towards those outliers and potentially skewing the representative point.
-
-###### Misrepresentation of Area
-
-Averaging latitude and longitude coordinates does not consider the spatial distribution of points. 
-
-In regions with unevenly distributed coordinates, the average may not accurately represent the central point of the area.
-
-My main purpose in using geolocation coordinates is to generate a map of the most heavily used areas of the city. I believe these issues will not significantly impact this analysis due to location, i.e. Chicago is not located near the poles or the international date line.  I do need to consider the impact of outliers and point distribution on average values.  
-
-### Addressing Stations
-
-#### Add New Station Ids
-
-Add new station ids to the source data frame with a join.
-
-```{r add_station_ids}
-station_ids <- station %>%
-  select(station_id,
-         original_station_id) 
-
-source <- source %>%
-  rename(original_station_id = start_station_id)
-         
-source <- left_join(source, station_ids, by = "original_station_id") %>%
-  rename(original_start_station_id = original_station_id,
-         start_station_id = station_id)
-
-source <- source %>%
-  rename(original_station_id = end_station_id)
-         
-source <- left_join(source, station_ids, by = "original_station_id") %>%
-  rename(original_end_station_id = original_station_id,
-         end_station_id = station_id)
-```
-
-### Trip Station
-
-```{r create_trip_station}
-trip_station_start <- source %>%
-  select(ride_id, start_station_id) %>%
-  mutate(station_type = "Start") %>%
-  rename(station_id = start_station_id) %>%
-  distinct_all()
-
-trip_station_end <- source %>%
-  select(ride_id, end_station_id) %>%
-  mutate(station_type = "End") %>%
-  rename(station_id = end_station_id) %>%
-  distinct_all()
-
-trip_station <- rbind(trip_station_start, trip_station_end)
-
-write.csv(trip_station, "../inst/extdata/output/trip_station.csv")
-
-usethis::use_data(trip_station, overwrite = TRUE)
-```
-
-```{r}
-trip <- source %>%
-  select(ride_id,
-         ride_type,
-         start_date_time,
-         end_date_time,
-         member_type,
-         trip_duration_in_minutes,
-         trip_type_id,
-         start_hour_of_day,
-         end_hour_of_day) %>%
-  rename(ride_type_id = ride_type,
-         member_type_id = member_type) %>%
-  mutate(ride_type_id = case_when(ride_type_id == "Classic" ~ 1,
-                                  ride_type_id == "Docked" ~ 2,
-                                  ride_type_id == "Electric" ~ 3),
-         ride_type_id = as.numeric(ride_type_id),
-         member_type_id = case_when(member_type_id == "Casual" ~ 1,
-                                    member_type_id == "Member" ~ 2),
-         member_type_id = as.numeric(member_type_id)) %>%
-  distinct_all()
-
-trip <- source
-
-write.csv(trip, "../inst/extdata/output/trip.csv")
+```{r save_trip}
+write.csv(trip, 
+          "../inst/extdata/output/trip.csv",
+          row.names = FALSE)
 
 usethis::use_data(trip, overwrite = TRUE)
 ```
 
-```{r}
-station <- station %>%
-  select(-original_station_id) %>%
-  group_by(station_id, station_name) %>%
-  summarise(latitude = mean(latitude),
-            longitude = mean(longitude)) 
-
-write.csv(station, "../inst/extdata/output/station.csv")
-
-usethis::use_data(station, overwrite = TRUE)
-```
-
-### Ride Type
-
-The following code chunk creates a ride type table.
-
-```{r create_ride_type}
-ride_type <- source %>%
-  group_by(ride_type) %>%
-  summarise(count = n())
-
-ride_type <- source %>%
-  distinct(ride_type) %>%
-  arrange(ride_type) %>%
-  mutate(ride_type_id = row_number()) %>%
-  select(ride_type_id,
-         ride_type)
-
-write.csv(ride_type, "../inst/extdata/output/ride_type.csv")
-
-usethis::use_data(ride_type, overwrite = TRUE)
-```
-
-### Member Type
-
-```{r create_member_type}
-member_type <- source %>%
-  group_by(member_type) %>%
-  summarise(count = n())
-
-member_type <- source %>%
-  distinct(member_type) %>%
-  arrange(member_type) %>%
-  mutate(member_type_id = row_number()) %>%
-  select(member_type_id,
-         member_type)
-
-write.csv(member_type, "../inst/extdata/output/member_type.csv")
-
-usethis::use_data(member_type, overwrite = TRUE)
-```
-
-### Trip Type
-
-```{r create_trip_type}
-trip_type <- data.frame(trip_type_id = c(1, 2),
-                        trip_type = c("Point-to-Point", "Loop"))
-
-write.csv(trip_type, "../inst/extdata/output/trip_type.csv")
-
-usethis::use_data(trip_type, overwrite = TRUE)
-```
+The code below ensures the source data frame has distinct rows and saves the cleaned data frame.  It now contains `r ncol(source)` columns and `r nrow(source)` rows of data.
 
 ### Calendar
+
+Create a calendar table.
 
 ```{r create_calendar}
 start_date <- as.Date("2022-01-01")
@@ -610,14 +330,16 @@ calendar <- calendar %>%
          day_long_name = lubridate::wday(date, TRUE, FALSE),
          day_short_name = lubridate::wday(date, TRUE, TRUE))
 
-write.csv(calendar, "../inst/extdata/output/calendar.csv")
+write.csv(calendar, 
+          "../inst/extdata/output/calendar.csv",
+          row.names = FALSE)
 
 usethis::use_data(calendar, overwrite = TRUE)
 ```
 
 ### Destination
 
-Create destination table.  Table contains...
+Create a destination table.
 
 Purpose is to compare trips to popular destinations in the city.
 
@@ -628,10 +350,21 @@ destination <- read.delim("../inst/extdata/source/destination.txt",
                           na.strings = c(""),
                           stringsAsFactors = FALSE)
 
-write.csv(destination, "../inst/extdata/output/destination.csv")
+write.csv(destination, 
+          "../inst/extdata/output/destination.csv",
+          row.names = FALSE)
 
 usethis::use_data(destination, overwrite = TRUE)
 ```
+
+### Data Integrity
+
+Regarding data integrity, I noted the following considerations:
+
+* The data is generally reliable, even if there are some missing values for location-related information, 
+* The data is original, first-party data collected by Cyclistic, 
+* The data is comprehensive enough for purposes of this analysis, and
+* The data is current, with data sets that cover the period January 2013 through November 2023.
 
 ## Next Steps
 
