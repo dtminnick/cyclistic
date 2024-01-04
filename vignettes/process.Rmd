@@ -40,13 +40,13 @@ invisible(lapply(packages, library, character.only = TRUE))
 
 The code chunk below loads the source data gathered in the prepare phase of this project.
 
-```{r load_source_data}
+```{r load_source_data, message = FALSE}
 load("C:/R/Packages/cyclistic/data/source.rda")
 
 trip <- source
 ```
 
-The data frame contains `r format(ncol(source), big.mark = ",", scientific = FALSE)` columns and `r format(nrow(source), big.mark = ",", scientific = FALSE)` rows of data.
+The data frame contains `r format(ncol(trip), big.mark = ",", scientific = FALSE)` columns and `r format(nrow(trip), big.mark = ",", scientific = FALSE)` rows of data.
 
 ### Missing Values
 
@@ -75,21 +75,23 @@ trip <- trip %>%
   na.omit()
 ```
 
-Dropping these rows reduces the overall number of rows in the source data to `r format(nrow(source), big.mark = ",", scientific = FALSE)` rows for analysis.
+Dropping these rows reduces the overall number of rows in the source data to `r format(nrow(trip), big.mark = ",", scientific = FALSE)` rows for analysis.
 
 ### Data Transformations
 
 To facilitate additional cleaning, will format columns in the source data frame and ensure there are no duplicate rows in the data frame.
 
 The code chunk below makes the following updates to the data frame:
+
 * Renames columns,
 * Formats latitude and longitude to number with five positions following the decimal,
 * Formats start and end date/time as Date objects,
 * Creates a trip duration variable by dividing the difference between the start and end date times by 60,
 * Creates a trip type variable that is coded as 'loop' if the start and end stations are the same or 'point-to-point' if they are not,
 * Creates variables to capture the start and end hour for each trip, and
-* Recodes ride type (Classic, Docked, Electric) and member type (Casual, Member), and
-* Creates a day of week variable based on the the start date/time.
+* Recodes ride type (Classic, Docked, Electric) and member type (Casual, Member),
+* Creates a day of week variable based on the the start date/time, and
+* Creates a category of day variable ('workweek' or 'weekend') based on the day of week.
 
 ```{r format_data_frame}
 trip <- trip %>%
@@ -116,7 +118,8 @@ trip <- trip %>%
                                ride_type == "electric_bike" ~ "Electric"),
          member_type = case_when(member_type == "casual" ~ "Casual",
                                  member_type == "member" ~ "Member"),
-         day_of_week = lubridate::wday(start_date_time, TRUE, TRUE))
+         day_of_week = lubridate::wday(start_date_time, TRUE, TRUE),
+         category_of_day = if_else(day_of_week %in% c("Sat", "Sun"), "Weekend", "Workweek"))
 ```
 
 ### Same-Day Trips
@@ -137,7 +140,7 @@ trip <- trip %>%
   filter(trip_duration_in_minutes >= 5 & trip_duration_in_minutes <= 960)
 ```
 
-This leaves a range of duration values from `r min(source$trip_duration_in_minutes)` to `r max(source$trip_duration_in_minutes)` minutes.
+This leaves a range of duration values from `r min(trip$trip_duration_in_minutes)` to `r max(trip$trip_duration_in_minutes)` minutes.
 
 ### Station Names
 
@@ -289,12 +292,50 @@ trip <- trip %>%
                                         "Base - 2132 W Hubbard Warehouse"))
 ```
 
+### Distinct Rows
+
 Ensure data frame has distinct rows.
 
 ```{r remove_duplicate_rows}
 trip <- trip %>% 
   distinct_all()
 ```
+
+### Filter Extreme Trip Duration Values
+
+Filter the data to exclude extreme values in trip duration that lie outside the calculated interquartile range for this data field.  Dropping these extreme values will aid exploratory analysis by making patterns related to trip duration more apparent.
+
+Calculate and use the interquartile range to identify and exclude extreme values.
+
+```{r filter_trip_data}
+quartiles <- quantile(trip$trip_duration_in_minutes, 
+                      probs = c(.25, .75), 
+                      na.rm = FALSE)
+
+iqr <- IQR(trip$trip_duration_in_minutes)
+ 
+lower <- quartiles[1] - 1.5 * iqr
+
+upper <- quartiles[2] + 1.5 * iqr 
+ 
+trip <- trip %>%
+  filter(trip_duration_in_minutes > lower & trip_duration_in_minutes < upper)
+```
+
+### Generate Analysis Sample
+
+Set seed for reproducibility and select a random sample of 250,000 rows to facilitate an exploratory analysis and avoid long code run times.
+
+```{r sample_trip_data}
+set.seed(91210)
+
+trip <- trip %>%
+    slice_sample(n = 250000)
+```
+
+### Save Trip Sample Data
+
+Save the cleaned trip data frame.  It now contains `r format(ncol(trip), big.mark = ",", scientific = FALSE)` columns and `r format(nrow(trip), big.mark = ",", scientific = FALSE)` rows of data.
 
 ```{r save_trip}
 write.csv(trip, 
@@ -304,9 +345,7 @@ write.csv(trip,
 usethis::use_data(trip, overwrite = TRUE)
 ```
 
-The code below ensures the source data frame has distinct rows and saves the cleaned data frame.  It now contains `r ncol(source)` columns and `r nrow(source)` rows of data.
-
-### Calendar
+### Create Calendar Table
 
 Create a calendar table.
 
@@ -322,8 +361,14 @@ calendar <- calendar %>%
          month = lubridate::month(date),
          week = lubridate::week(date),
          day_of_month = lubridate::day(date),
-         year_and_quarter = paste(lubridate::year(date), "-", str_pad(lubridate::quarter(date), 2, "left", "0"), sep = ""),
-         year_and_month = paste(lubridate::year(date), "-", str_pad(lubridate::month(date), 2, "left", "0"), sep = ""),
+         year_and_quarter = paste(lubridate::year(date), 
+                                  "-", 
+                                  str_pad(lubridate::quarter(date), 2, "left", "0"), 
+                                  sep = ""),
+         year_and_month = paste(lubridate::year(date), 
+                                "-", 
+                                str_pad(lubridate::month(date), 2, "left", "0"), 
+                                sep = ""),
          month_long_name = lubridate::month(date, TRUE, FALSE),
          month_short_name = lubridate::month(date, TRUE, TRUE),
          day = lubridate::wday(date),
@@ -337,7 +382,7 @@ write.csv(calendar,
 usethis::use_data(calendar, overwrite = TRUE)
 ```
 
-### Destination
+### Create Destination Table
 
 Create a destination table.
 
@@ -357,7 +402,7 @@ write.csv(destination,
 usethis::use_data(destination, overwrite = TRUE)
 ```
 
-### Data Integrity
+### Data Integrity Notes
 
 Regarding data integrity, I noted the following considerations:
 
@@ -368,4 +413,4 @@ Regarding data integrity, I noted the following considerations:
 
 ## Next Steps
 
-The next step in this project is to analyze the data in preparation for sharing.
+The next step in this project is to analyze the data in preparation for sharing insights and recommendations.
