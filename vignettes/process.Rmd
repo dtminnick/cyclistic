@@ -92,6 +92,7 @@ The code chunk below makes the following updates to the data frame:
 * Recodes ride type (Classic, Docked, Electric) and member type (Casual, Member),
 * Creates a day of week variable based on the the start date/time, and
 * Creates a category of day variable ('workweek' or 'weekend') based on the day of week.
+* Creates a start end category variable ('same' or 'different') based on comparison of start and end hours of day.
 
 ```{r format_data_frame}
 trip <- trip %>%
@@ -119,7 +120,10 @@ trip <- trip %>%
          member_type = case_when(member_type == "casual" ~ "Casual",
                                  member_type == "member" ~ "Member"),
          day_of_week = lubridate::wday(start_date_time, TRUE, TRUE),
-         category_of_day = if_else(day_of_week %in% c("Sat", "Sun"), "Weekend", "Workweek"))
+         category_of_day = if_else(day_of_week %in% c("Sat", "Sun"), "Weekend", "Workweek"),
+         start_end_category = if_else(start_hour_of_day == end_hour_of_day,
+                                      "Same",
+                                      "Different"))
 ```
 
 ### Same-Day Trips
