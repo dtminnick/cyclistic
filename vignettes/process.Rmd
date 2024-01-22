@@ -296,6 +296,18 @@ trip <- trip %>%
                                         "Base - 2132 W Hubbard Warehouse"))
 ```
 
+### Latitude & Longitude
+
+Drop rows that have zero values for latitude and/or longitude.
+
+```{r remove_zero_coordinates}
+trip <- trip %>%
+  filter(start_latitude != 0) %>%
+  filter(start_longitude != 0) %>%
+  filter(end_latitude != 0) %>%
+  filter(end_longitude != 0)
+```
+
 ### Distinct Rows
 
 Ensure data frame has distinct rows.
