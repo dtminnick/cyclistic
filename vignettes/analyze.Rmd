@@ -20,26 +20,15 @@ You can find the Github repository for my work [here](https://github.com/dtminni
 
 ## Analyze Phase
 
-This phase involves formatting and transforming data, identifying patterns, drawing conclusions and making data-driven decisions.
-
-### Hypothesis
-
-To complete this analysis, I need to setup a comparison between casual riders and members, exploring whether their usage patterns differ and, if so, how they differ.  I believe there will be two fundamental usage patterns: some customers will be inclined towards work commutes during the week, while others will be more inclined toward recreational use during weekends.
-
-**Null Hypothesis**: There is no significant difference in the usage patterns between casual riders and members of the bike-sharing service. Both groups are equally likely to use the service for work commutes during the week and recreation on weekends.
-
-**Alternative Hypothesis**: There is a significant difference in the usage patterns between casual riders and members of the bike-sharing service. The usage patterns may vary, with one group being more inclined towards work commutes during the week, while the other group is more inclined towards recreational use on weekends.
-
-This hypothesis statement sets up the comparison between casual riders and members.  I will test this hypothesis and assess whether there is enough evidence to reject the null hypothesis in favor of the alternative hypothesis.
-
-The outcome of this analysis will then inform strategies Cyclistic can use to increase profits by converting casual riders to members.
+This phase involves identifying patterns, drawing conclusions and making data-driven decisions.
 
 ### Load Libraries
 
 I am using libraries from the tidyverse collection of R packages and supplementing with the knitr, RColorBrewer and sf libraries for table formatting, color palettes and manipulation of spatial data, i.e. to generate maps.
 
 ```{r load_libraries, message = FALSE}
-packages <- c("dplyr", "ggplot2", "knitr", "lubridate", "RColorBrewer", "sf", "stringr", "tidyr")
+packages <- c("dplyr", "ggmap", "ggplot2", "ggridges", "ggthemes", "knitr", "lubridate", 
+              "osmdata", "RColorBrewer", "sf", "stringr", "tidyr")
 
 installed_packages <- packages %in% rownames(installed.packages())
 
@@ -72,7 +61,15 @@ cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2",
 
 ## Exploratory Analysis
 
-### Trips by Member Type
+### Proportion of Trips Taken by Customer Type
+
+By knowing the proportion of trips taken by casual riders and members, I can identify which customer type dominates the usage. If casual riders significantly outnumber members, it suggests a higher potential for conversion, as there may be a larger pool of engaged and committed customers to appeal to.
+
+If members already make up the majority of trips, prioritizing strategies to convert casual riders into members becomes crucial for sustained growth and revenue.
+
+Analyzing the proportion of trips also helps in understanding how each customer type uses the service differently. This insight can be valuable in tailoring conversion strategies to address the specific needs, behaviors, and preferences of casual riders.
+
+If the proportion of casual riders is low, it's essential to identify potential barriers preventing them from becoming members. Analyzing the data can reveal whether it's a lack of awareness, concerns about cost, or other factors hindering the conversion process.
 
 Establish the proportion of trips taken by casual riders and members.
 
@@ -91,51 +88,128 @@ kable(trips_by_member_type,
       align = c("l", "r", "r"))
 ```
 
-So 59% of trips are taken by members and 41% are taken by casual riders, i.e. four in every ten customers are casual riders.  This is our conversion opportunity.  Plot these percentages.
+Plot the proportions.
 
 ```{r plot_trips_by_member_type}
 ggplot(trips_by_member_type[1:2,], aes(x = member_type, y = trip_count)) +
   geom_bar(stat = "identity", fill = cbPalette[2]) + 
-  labs(title = "Trips by Member Type",
-       subtitle = "Four in every ten customers are casual riders; this is our conversion opportunity.",
+  ylim(0, 155000) + 
+  labs(title = "Proportion of Trips Taken by Member Type",
+       subtitle = "Casual riders take four in every ten trips; this is a substantial customer presence.",
        x = "Member Type",
        y = "Trip Count") + 
-  geom_text(aes(label = paste(percent * 100, "%", sep = "")), colour = "white", vjust = 1.5) + 
+  geom_text(aes(label = paste(percent * 100, "%", sep = "")), colour = "black", vjust = -0.35, size = 3) + 
+  geom_text(aes(label = format(trip_count, big.mark = ",", scientific = FALSE)), colour = "black", vjust = 1.25, size = 3) + 
   scale_fill_manual(values = cbPalette) + 
   theme_light()
+
+ggsave(filename = "trips_by_member_type.png",
+       path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
+       width = 7,
+       height = 4,
+       dpi = 600)
 ```
 
-### Observation 1 - Casual Rider Conversion Opportunity
+#### Observations
 
-Given the data sample, I estimate that casual riders contribute 40% of trips to Cyclistic's bike-sharing activity.
+Four in every ten trips (40%) are taken by casual riders.  The 40% proportion indicates a substantial presence of casual riders within the customer base. This suggests that a considerable portion of Cyclistic's customers prefer a pay-as-you-go or occasional usage model rather than committing to a long-term membership.
 
-### Trips by Trip Type
+Annual members, constituting 60% of the trips, are more actively engaged with the bike-sharing service. This high proportion could indicate that annual members use the service more consistently or for a broader range of purposes.
 
-Trips can be point-to-point (i.e. starts at one station and ends at another) or loop (i.e. starts and ends at the same station).  Show trips by trip type.
+#### Opportunities
 
-```{r trips_by_trip_type}
-trips_by_trip_type <- trip %>%
-  group_by(member_type, trip_type) %>%
-  tally() %>%
-  spread(member_type, n) %>%
-  bind_rows(summarise(., across(where(is.numeric), sum),
-                       across(where(is.character), ~ "Combined"))) %>%
-  mutate(total = rowSums(across(where(is.numeric))))
+Some users may prefer the flexibility of occasional rides without the commitment of an annual membership, potentially using the service for specific purposes or as a sporadic means of transportation.
 
-kable(trips_by_trip_type,
-      col.names = c("Trip Type", "Casual", "Member", "Total"),
-      caption = "Trips Crosstab: Trip Counts by Trip Type & Member Type",
+Understanding this proportion allows Cyclistic to strategically target casual riders with campaigns and incentives aimed at encouraging them to become members and enjoy the benefits of long-term commitment.
+
+Considering the proportion of casual riders, Cyclistic might explore introducing flexible membership options or pricing plans that appeal to users who prefer occasional rides. This flexibility can enhance the service's attractiveness to a broader audience.
+
+### Proportion of Trips by Customer Type and Month
+
+Understanding how the proportion of trips fluctuates throughout the year provides insights into seasonal variations. This information can guide the timing of conversion campaigns, considering factors such as weather, holidays, or events that might influence customer behavior.
+
+Establish the proportion of trips over time.
+
+```{r trips_by_member_type_and_month}
+trips_by_member_type_and_month <- trip %>%
+  mutate(month = month(start_date_time, label = TRUE, abbr = TRUE)) %>%
+  group_by(month, member_type) %>%
+  summarise(trip_count = n()) %>%
+  mutate(percent = round(trip_count / sum(trip_count), 2))
+
+kable(trips_by_member_type_and_month,
+      col.names = c("Month", "Member Type", "Trip Count", "Percent"),
+      caption = "Trips by Member Type and Month",
       format.args = list(big.mark = ","),
-      align = c("l", "r", "r", "r"))
+      align = c("l", "l", "r", "r"))
 ```
 
-Most trips are point-to-point; 5% are loops.
+Plot the proportions.
 
-Whether riders are using bike-sharing for recreational purposes or commuting, it's unlikely they would retain the rental beyond the leg of a given trip as this would require them to paid rental fees for idle time.  So while there may be fewer loop-type trips, the data is not captured in a manner that this dynamic can be better quantified.  
+```{r plot_trips_by_member_type_and_month}
+ggplot(trips_by_member_type_and_month, aes(x = month, y = trip_count)) +
+  geom_bar(stat = "identity", fill = cbPalette[2]) + 
+  ylim(-2000, 22000) + 
+  labs(title = "Trips by Member Type and Month",
+       subtitle = "Casual riders and members show levels of usage that is strongest in the summer months.",
+       x = "Month",
+       y = "Trip Count") + 
+  facet_grid(rows = vars(member_type)) + 
+  geom_text(aes(label = paste(percent * 100, "%", sep = "")), colour = "black", vjust = -0.35, size = 3) + 
+  geom_text(aes(label = format(trip_count, big.mark = ",", scientific = FALSE)), colour = "black", vjust = 1.25, size = 3) + 
+  scale_fill_manual(values = cbPalette) + 
+  theme_light()
 
-To better quantify this, we would need rider-specific information to match trips by rider.  Assuming we then find multiple trips with common start and end stations, we could tag these as a trip type of loop.
+ggsave(filename = "trips_by_member_type_and_month.png",
+       path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
+       width = 7,
+       height = 4,
+       dpi = 600)
+```
+
+#### Observations
+
+From January to December, both casual riders and members show varying levels of usage.
+
+There seems to be a trend of increased usage, especially by members, during the warmer months (e.g., May to September), suggesting a possible seasonality effect where people are more inclined to use bike-sharing services in favorable weather.
+
+Throughout the entire year, members consistently contribute to the majority of trips, with proportions ranging from 52% to 83%.
+
+Casual ridership varies more compared to members, showing peaks and troughs throughout the year. The proportion of trips taken by casual riders ranges from 17% to 48%, suggesting fluctuations in the demand from this group.
+
+Casual rider trips show a notable increase during the warmer months, reaching peak levels in June and July. This pattern suggests that casual riders are more active during the spring and summer seasons, possibly due to favorable weather conditions.
+
+Member trips also exhibit a seasonal trend with higher counts during the warmer months, particularly in June, July, and August. Members, like casual riders, seem to be more engaged during the months with better weather.
+
+The combined total of trips shows a clear seasonality, with a significant uptick in the spring and summer months. The months of June and July have the highest combined trip counts, indicating a peak in overall bike-sharing activity during these warmer periods.
+
+Trips decrease during the winter months, particularly in December, with lower numbers for both casual and member riders. Colder temperatures, adverse weather conditions, and reduced outdoor activities during winter likely contribute to the decline in bike-sharing usage.
+
+There is a noticeable decline in trips starting in September, marking the transition from summer to fall. This decline continues through the fall months, suggesting a seasonal shift in user behavior as temperatures decrease.
+
+#### Opportunities
+
+Months where member usage is rising or particularly high can serve as opportunities to focus on converting casual riders into members, as the overall engagement with the service is strong during these periods.
+
+Note the seasonal patterns in casual and member trip counts.  Months with higher casual rider proportions possibly indicate peak tourist seasons or specific events. Cyclistic can tailor conversion strategies to capitalize on these patterns.
+
+Focus marketing campaigns, promotions, and outreach efforts on encouraging bike-sharing usage during the peak seasons. Highlight the benefits of biking in pleasant weather and promote seasonal events or initiatives to attract riders.
+
+Consider implementing member retention strategies during the off-peak months to encourage continued engagement. This could involve special promotions, loyalty programs, or exclusive events to maintain member interest during colder seasons.
+
+Develop strategies to mitigate the impact of winter on bike-sharing activity. This might include offering winter-specific promotions, providing weather-resistant gear, or adjusting services to accommodate changing user preferences during colder months.
+
+Retention strategies might include collaborating with cold-weather gear brands to offer discounts or promotions for bike-sharing members. This could include discounts on gloves, hats, or other winter accessories, encouraging users to stay warm and comfortable while biking.  Cyclistic might also consider winter riding challenges or winter social events to foster a sense of community.
 
 ### Trips by Ride Type
+
+Available ride types, whether classic or electric bicycles, can significantly influence the conversion of casual riders to members.
+
+Electric bikes may offer a different and potentially more appealing experience for riders, especially those who are less accustomed to cycling or looking for a more effortless ride.
+
+Electric bikes can be perceived as more accessible for a broader range of users, including those who may find traditional biking more strenuous.
+
+Electric bikes can offer a faster and more convenient mode of transportation, particularly in hilly areas or for longer distances. 
 
 Do customers show any preference in ride type, i.e. classic bicycle versus electric?  Determine the percent of rides taken using each ride type offered.
 
@@ -154,7 +228,7 @@ kable(trips_by_ride_type,
       align = c("l", "r", "r"))
 ```
 
-A significant majority of customers, approximately 60%, prefer classic bikes, while a substantial portion, around 37%, opt for electric bikes. This distribution suggests a notable preference for traditional bikes among the customer base, with a significant but comparatively smaller interest in electric alternatives.  Plot the percentages.
+Plot usage by ride type.
 
 ```{r plot_trips_by_ride_type}
 ggplot(trips_by_ride_type[1:3,], aes(x = ride_type, y = trip_count)) +
@@ -163,14 +237,37 @@ ggplot(trips_by_ride_type[1:3,], aes(x = ride_type, y = trip_count)) +
        subtitle = "Customers show preference for classic bicycles, with significant interest in electric alternatives.",
        x = "Ride Type",
        y = "Trip Count") + 
-  geom_text(aes(label = paste(percent * 100, "%", sep = "")), colour = "white", vjust = 1.5) + 
+  geom_text(aes(label = paste(percent * 100, "%", sep = "")), colour = "black", vjust = -0.35, size = 3) + 
+  geom_text(aes(label = format(trip_count, big.mark = ",", scientific = FALSE)), colour = "black", vjust = 1.25, size = 3) + 
   scale_fill_manual(values = cbPalette) + 
   theme_light()
+
+ggsave(filename = "trips_by_ride_type.png",
+       path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
+       width = 7,
+       height = 4,
+       dpi = 600)
 ```
+
+#### Observations
+
+Classic bikes have the highest trip count, constituting 60% of the total trips. This indicates a strong preference for traditional, non-electric bikes among users. The majority of riders seem to favor the classic biking experience.
+
+Docked bikes represent only 3% of the total trips. This suggests that, compared to classic and electric bikes, the docked option is less popular among users. The low percentage may be influenced by factors such as accessibility or user preferences for dockless options.
+
+Electric bikes contribute to 36% of the total trips, indicating a substantial user preference for this ride type. The popularity of electric bikes suggests that users value the convenience, speed, and ease of use associated with electric-assisted biking.
+
+#### Opportunities
+
+The high percentage of electric bike usage, combined with the prevalence of classic bikes, suggests that users appreciate having versatile options. 
+
+Electric bikes may be favored for certain scenarios, such as longer distances or hilly terrain, while classic bikes provide a more traditional biking experience.
+
+### Trips by Ride Type and Member Type
 
 How does this preference vary when comparing customer types?
 
-```{r trips_by_member_and_ride_type_v1}
+```{r trips_by_member_and_ride_type}
 trips_by_member_and_ride_type_v1 <- trip %>%
   group_by(member_type, ride_type) %>%
   summarise(trip_count = n()) %>%
@@ -187,9 +284,9 @@ kable(trips_by_member_and_ride_type_v1,
       align = c("l", "r", "r", "r"))
 ```
 
-51% of casual riders used classic bicycles, compared to 66% of members.  And 41% of casual riders prefer electric bicycles, compared to 66% of members.  Plot the percentages.
+Plot ride type usage by customer type.
 
-```{r plot_trips_by_member_and_ride_type_v1}
+```{r plot_trips_by_member_and_ride_type}
 trips_by_member_and_ride_type_v2 <- trip %>%
   group_by(member_type, ride_type) %>%
   summarise(trip_count = n()) %>%
@@ -202,103 +299,63 @@ ggplot(trips_by_member_and_ride_type_v2, aes(x = ride_type, y = trip_count)) +
      x = "Ride Type",
      y = "Trip Count") + 
   facet_grid(cols = vars(member_type)) + 
-  geom_text(aes(label = paste(percent * 100, "%", sep = "")), colour = "white", vjust = 1.5) + 
+  geom_text(aes(label = paste(percent * 100, "%", sep = "")), colour = "black", vjust = -0.35, size = 3) + 
+  geom_text(aes(label = format(trip_count, big.mark = ",", scientific = FALSE)), colour = "black", vjust = 1.25, size = 3) + 
   guides(fill=guide_legend(title="Ride Type")) + 
   scale_fill_manual(values = cbPalette) + 
   theme_light()
+
+ggsave(filename = "trips_by_member_and_ride_type.png",
+       path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
+       width = 7,
+       height = 4,
+       dpi = 600)
 ```
 
-Based on these proportions, it appears that casual riders may have a greater preference for electric bicycles when compared to members.
+#### Observations
 
-Is there sufficient evidence to draw this conclusion, i.e. is the proportion of casual riders using electric bicycles statistically greater than the same proportion of members?
+Classic bikes are popular among both casual riders and members, with members contributing a higher proportion of trips. The majority of classic bike trips are taken by members, highlighting the enduring appeal of traditional biking for committed users.
 
-Perform a proportions test to confirm whether the observed proportion of electric bicycle riders among casual riders is greater than the proportion for members with 95% confidence.
+Docked bikes are exclusively used by casual riders in this dataset, with no usage by members. This may indicate that docked bikes are more appealing to casual users or that the service availability for docked bikes is limited or specific to certain areas.
 
-```{r proportions_test_electric}
-prop.test(x = c(41308, 50269), n = c(101726, 148274), alternative = "greater")
-```
+Electric bikes are utilized by both casual riders and members, with a similar distribution of trips between the two groups. This suggests that electric bikes have broad appeal across user segments, making them a popular and versatile choice.
 
-Given the test’s p-value of 2.2e-16, which is less than the alpha = 0.05 significance level, we may conclude that the proportion of customers with a preference for electric bicycles in the two groups is significantly different, i.e. casual riders have a greater preference for electric bicycles.
+Casual riders show a higher preference for electric bikes compared to members. While both customer types use electric bikes, casual riders contribute a larger share of trips on electric bikes within their total trip count.
 
-### Observation 2 - Electric Bicycle Preference
+#### Opportunities
 
-So Cyclistic should ensure that its fleet of electric bicycles is sufficiently large enough to meet the needs of casual riders that prefer them.  A limited supply of electric bicycles may hinder the company's ability to convert casual riders to member status.
+Given these insights, Cyclistic could launch targeted promotional campaigns to encourage both casual riders and members to use electric bikes. Highlight the convenience, speed, and versatility of electric bikes, and offer discounts or incentives to boost their usage.
 
-### Notes on Docked Bicycles
-
-Presumably, docking stations are special bicycle racks that lock the bicycles and only release them by computer control.  Perhaps Cyclistic uses both docked and dockless systems where riders must leave a bike at a designated station or can leave them anywhere within a geo-fenced area, e.g. within city limits, when they finish using them.  It's also not clear whether docked bicycles are electric or not.
-
-In this sample, members have not used any docked bicycles, and casual rider use is 8% of total trips recorded for casual users.  Given this limited use, I will treated docked bicycles as classic bicycles.
-
-### Trips by Month
-
-Generate a time-based view of rides to show the number of trips made per month by each customer type.
-
-```{r trips_by_member_type_and_month_v1}
-trips_by_member_type_and_month_v1 <- trip %>%
-  mutate(month = month(start_date_time, label = TRUE, abbr = TRUE)) %>%
-  group_by(month, member_type) %>%
-  summarise(trip_count = n()) %>%
-  pivot_wider(names_from = month, values_from = trip_count) %>%
-  bind_rows(summarise(., across(where(is.numeric), sum),
-                 across(where(is.character), ~ "Combined"))) %>%
-  mutate(total = rowSums(across(where(is.numeric))))
-
-kable(trips_by_member_type_and_month_v1,
-      col.names = c("Member Type", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Total"),
-      caption = "Trips by Member Type & Month",
-      format.args = list(big.mark = ","),
-      align = c("l", "r", "r", "r", "r", "r", "r", "r", "r", "r", "r", "r", "r", "r"))
-```
-
-Peak volumes occur in the summer months of June, July and August when, presumably, the weather is most conducive to riding bicycles.  Alternatively, ride volume is at it's lowest point in the winter months of December, January and February when cold temperatures and winter weather makes it difficult to ride bicycles.  Plot this pattern.
-
-```{r plot_trips_by_member_type_and_month_v2}
-trips_by_member_type_and_month_v2 <- trip %>%
-  mutate(month = month(start_date_time, label = TRUE, abbr = TRUE)) %>%
-  group_by(month, member_type) %>%
-  summarise(trip_count = n())
-
-ggplot(trips_by_member_type_and_month_v2, aes(x = month, y = trip_count, fill = member_type)) +
-  geom_bar(stat = "identity") + 
-  labs(title = "Trips by Member Type & Month",
-       subtitle = "The seasonal volume of trips peaks in summer for both customer types.",
-       x = "Member Type",
-       y = "Trip Count") + 
-  guides(fill=guide_legend(title="Member Type")) + 
-  scale_fill_manual(values = cbPalette) + 
-  theme_light()
-```
-
-This seasonal pattern is essentially the same for both casual riders and members.
-
-### Observation 3 - Leverage Seasonality in Marketing
-
-Given the steady rise in trips ahead of the summer peak, the early spring months are a good time to campaign to casual riders to purchase memberships.  Beyond the practical benefits of bike-sharing for work commute, it's common to observe a natural rise in bike riding during the spring and summer months. Several factors contribute to this seasonal pattern:
-
-**Weather**: Warmer temperatures and longer daylight hours in spring and summer create more favorable conditions for outdoor activities, including biking.
-
-**Seasonal Events**: Many cities and communities organize biking events, races, or group rides during the warmer months, attracting more people to participate.
-
-**School Vacations**: With schools often having breaks during the summer, families may engage in recreational activities together, including biking.
-
-**Tourism**: In tourist destinations, the spring and summer months often see an increase in visitors who may explore the area on bikes.
-
-**Health and Fitness Goals**: People may be more motivated to engage in physical activities, such as biking, as part of their health and fitness goals, and this motivation may peak in the warmer months.
+The company might also consider offering additional benefits or exclusive features for members who choose electric bikes. This could include priority access, special events, or discounted rates for electric bike usage, encouraging members to continue choosing this ride type.
 
 ### Trips by Duration
 
 Generate a summary of the trip duration column.
 
-```{r trip_duration_summary}
-summary(trip$trip_duration_in_minutes)
+```{r trips_by_duration}
+trips_by_duration <- trip %>%
+  select(member_type, trip_duration_in_minutes) %>%
+  group_by(interval = cut_width(trip_duration_in_minutes, width = 3, boundary = 0),
+           member_type) %>%
+  summarise(trip_count = n()) %>%
+  pivot_wider(names_from = interval, values_from = trip_count) %>%
+  bind_rows(summarise(., across(where(is.numeric), sum),
+                 across(where(is.character), ~ "Combined"))) %>%
+  mutate(total = rowSums(across(where(is.numeric))))
+
+kable(trips_by_duration,
+      col.names = c("Member Type", "3-6", "6-9", "9-12", "12-15", "15-18", "18-21", 
+                    "21-24", "24-27", "27-30", "30-33", "33-36", "36-39", "39-42", "Total"),
+      caption = "Duration Frequency by Member Type & Interval",
+      format.args = list(big.mark = ","),
+      align = c("l", "r", "r", "r", "r", "r", "r", "r", "r", "r", "r", "r", "r", "r"))
 ```
 
-Mean trip duration is approximately 15 minutes with significant variation around that average.  Assuming a rider can cover one mile in 3-5 minutes, the approximate distance traveled would be in the range of 3-6 miles on average per trip.  Plot the distribution of trips by member type.
+Plot duration frequency.
 
-```{r trips_by_member_type_and_duration}
+```{r plot_trips_by_member_type_and_duration}
 ggplot(trip, aes(x = trip_duration_in_minutes, fill = member_type)) +
-  geom_histogram(binwidth = .5, alpha =.5, position = "dodge") + 
+  geom_histogram(binwidth = 1, alpha = 1, position = "dodge") + 
   labs(title = "Trips by Member Type & Trip Duration",
      subtitle = "Members take more short-duration trips (less than 20 minutes) compared to casual riders.",
      x = "Trip Duration",
@@ -306,19 +363,19 @@ ggplot(trip, aes(x = trip_duration_in_minutes, fill = member_type)) +
   guides(fill=guide_legend(title="Member Type")) + 
   scale_fill_manual(values = cbPalette) + 
   theme_light()
+
+ggsave(filename = "trips_by_member_type_and_duration.png",
+       path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
+       width = 7,
+       height = 4,
+       dpi = 600)
 ```
 
-This chart shows that members have a higher volume of trips with a duration of less than twenty minutes.  For trips with duration of twenty minutes or greater, casual riders and members have roughly the same volume.
-
-What might account for this difference?  There may be a connection between purpose of the trips (i.e. work commute versus recreation) and duration.  The source data does not include data points for purpose, but I might be able to infer this by breaking down the data by day of week.
-
-### Trips by Category of Day
-
-Generate a plot that shows trips by member type and category of day (i.e. workweek versus weekend).
+Plot duration by category of day.
 
 ```{r trips_by_member_type_and_day_category}
 ggplot(trip, aes(x = trip_duration_in_minutes, fill = category_of_day)) +
-  geom_histogram(binwidth = .5, alpha =.5, position = "dodge") +
+  geom_histogram(binwidth = 1, alpha = 1, position = "dodge") +
   facet_grid(rows = vars(member_type)) + 
   labs(title = "Trips by Member Type & Trip Duration",
    subtitle = "Most of the short-duration trips occur during the work week.",
@@ -327,19 +384,126 @@ ggplot(trip, aes(x = trip_duration_in_minutes, fill = category_of_day)) +
   guides(fill=guide_legend(title="Category of Day")) + 
   scale_fill_manual(values = cbPalette) + 
   theme_light()
+
+ggsave(filename = "trips_by_member_type_and_day_category.png",
+       path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
+       width = 7,
+       height = 4,
+       dpi = 600)
 ```
 
-So during weekdays, members are taking more trips than casual members and on weekends, the distribution of trips for both customer types is similar.
+Plot duration by day of week.
 
-Are these trips constrained at all by geography or citiscape?  If someone is using the bike-sharing service for work commute, then this might be a consideration, i.e. if the citiscape doesn't provide bike lanes, it's likely to be safer and more convenient to use public transportation.  Someone commuting to work is likely to also be constrained by schedule, at least when it comes to arriving to work on time.
+```{r trips_by_member_type_and_day_of_week}
+ggplot(trip, aes(x = trip_duration_in_minutes, fill = member_type)) +
+  geom_histogram(binwidth = 1, alpha = 1, position = "dodge") +
+  facet_grid(rows = vars(day_of_week)) + 
+  labs(title = "Trips by Member Type & Trip Duration",
+   subtitle = "Most of the short-duration trips occur during the work week.",
+   x = "Trip Duration",
+   y = "Trip Count") + 
+  guides(fill=guide_legend(title="Member Type")) + 
+  scale_fill_manual(values = cbPalette) + 
+  theme_light()
 
-The dataset does not include information on why customers use Cyclistic's service, i.e. the purpose of their trip.
+ggsave(filename = "trips_by_member_type_and_day_of_week.png",
+       path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
+       width = 7,
+       height = 4,
+       dpi = 600)
+```
 
-It does include information, the start and end date/time of each trip, we can use to infer purpose.  For example, a rider using  the service primarily to commute to and from work will have trips during the weekdays.  And riders using the service for other purposes, e.g. recreation, will likely have trips during weekend days.  
+Plot duration using kernal density plot.
 
-In addition, we might be able to infer purpose using geolocation data.  If, for example, there are a high volume of trips starting or ending at destinations in the city, e.g. parks, attractions, cultural and culinary locations, we might infer the service is being used for non-commute purposes.
+```{r plot_trips_by_member_type_and_duration_density}
+ggplot(trip, aes(x = trip_duration_in_minutes, fill = member_type)) +
+  geom_density(alpha = 0.5) +
+    labs(title = "Trips by Member Type & Trip Duration",
+    subtitle = "Members take more short-duration trips (less than 20 minutes) compared to casual riders.",
+    x = "Trip Duration",
+    y = "Density") + 
+  guides(fill = guide_legend(title = "Member Type")) + 
+  scale_fill_manual(values = cbPalette) + 
+  theme_light()
+
+ggsave(filename = "trips_by_member_type_and_duration_density.png",
+       path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
+       width = 7,
+       height = 4,
+       dpi = 600)
+```
+
+Plot duration using kernal density plot, split by member type and category of day.
+
+```{r plot_trips_by_member_type_and_duration_split_density}
+ggplot(trip, 
+       aes(x = trip_duration_in_minutes, y = member_type, fill = category_of_day)) +
+  geom_density_ridges(alpha = 0.5) + 
+  theme_ridges() +
+  theme(legend.position = "none") + 
+    labs(title = "Trips by Member Type & Trip Duration",
+    subtitle = "Members take more short-duration trips (less than 20 minutes) compared to casual riders.",
+    x = "Trip Duration",
+    y = "Density") + 
+  guides(fill = guide_legend(title = "Member Type")) + 
+  scale_fill_manual(values = cbPalette) + 
+  theme_light()
+
+ggsave(filename = "trips_by_member_type_and_duration_split_density.png",
+       path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
+       width = 7,
+       height = 4,
+       dpi = 600)
+```
+
+#### Observations
+
+These chart shows that members have a higher volume of trips with a duration of less than twenty minutes.  For trips with duration of twenty minutes or greater, casual riders and members have roughly the same volume.
+
+The charts also demonstrate that most of the short-duration trips, regardless of customer type, are occurring during the work week versus weekends.
+
+What might account for this difference?
+
+Members may be using the bike-sharing service more efficiently for short, quick trips, such as commuting to nearby locations or running errands. The convenience and time-saving aspects of bike-sharing could be more appealing to members for shorter durations.
+
+Members might be utilizing the service for daily commuting purposes within a close proximity, contributing to a higher volume of shorter trips. The predictability and routine nature of commuting could lead members to opt for quick rides.
+
+Members, by virtue of their membership commitment, may feel more inclined to use the service frequently for various purposes, including short trips. The subscription model encourages regular usage among members.
+
+The similarity in frequencies after twenty minutes could indicate that, for longer trips, both casual riders and members have comparable usage patterns. Longer trips may involve more leisurely rides or journeys to destinations farther away.
+
+Beyond twenty minutes, the factors influencing bike-sharing usage may become more uniform between casual riders and members. Both customer types may share a similar interest in using bikes for leisure, exercise, or exploring areas that require a longer travel time.
+
+#### Opportunities
+
+Emphasize and promote the benefits of membership, especially for short trips, to encourage casual riders to consider becoming members. This could include highlighting cost savings, convenience, and additional perks for frequent users.
+
+Tailor marketing strategies based on trip durations. For shorter trips, focus on promoting the efficiency and time-saving aspects of the service, while for longer trips, emphasize the leisure and exploration benefits.
+
+#### Commutes Versus Recreation
+
+Commute trips are often shorter because they typically involve traveling between a person's home and workplace, which are likely to be relatively close.
+Recreational trips may involve exploring parks, neighborhoods, or other leisure destinations, which could lead to longer rides.
+
+While it's reasonable to assume that commute trips are generally shorter than recreational trips, the actual patterns can vary based on local factors and user preferences. Analyzing data specific to the bike-sharing service in a particular city or region would provide more accurate insights into trip lengths and user behavior.
+
+Actual trip lengths for bike-sharing services can vary based on any of the following factors.
+
+**Demographics**: Users of bike-sharing services can vary in age, fitness level, and cycling experience. Some users may be more comfortable with longer rides for recreation, while others may use bikes primarily for short commutes.
+
+**Urban Planning**: The layout of a city and the availability of bike lanes and infrastructure can impact the convenience and safety of cycling. Cities with well-developed cycling infrastructure may see longer average trip lengths for both commuting and recreation.
+
+**Local Culture and Habits**: Cultural factors and local habits may also play a role. In some areas, cycling could be more deeply ingrained in daily life, leading to longer rides for various purposes.
+
+**Weather Conditions**: Weather can influence the willingness of individuals to use bike-sharing services. In inclement weather, people may prefer shorter rides for essential trips.
+
+**Bike Availability and Pricing Structure**: The availability and pricing structure of bike-sharing services can impact user behavior. If bikes are readily available and priced affordably for short trips, users may be more inclined to use them for commuting.
 
 ### Trips by Day of Week
+
+Analyzing day-of-the-week patterns over time can reveal seasonal variations in bike-sharing usage over the short-term.  Understanding peak days can help in designing targeted marketing campaigns and promotions.
+
+Generate a summary of trips by day of week.
 
 ```{r trips_by_day_of_week}
 trips_by_member_type_and_day_of_week_v1 <- trip %>%
@@ -357,135 +521,148 @@ kable(trips_by_member_type_and_day_of_week_v1,
       align = c("l", "r", "r", "r", "r", "r", "r", "r", "r"))
 ```
 
+Plot trips by day of week.
+
 ```{r plot_trips_by_day_of_week}
 trips_by_member_type_and_day_of_week_v2 <- trip %>%
   group_by(day_of_week, member_type) %>%
-  summarise(trip_count = n())
+  summarise(trip_count = n()) %>%
+  mutate(percent = round(trip_count / sum(trip_count), 2))
 
 ggplot(trips_by_member_type_and_day_of_week_v2, aes(x = day_of_week, y = trip_count, fill = member_type)) +
   geom_bar(stat = "identity") + 
+  facet_grid(rows = vars(member_type)) + 
+  ylim(0, 25000) +
   labs(title = "Trips by Member Type & Day of Week",
        subtitle = "While overall trips peak on Saturdays; for members, trips peak in mid-week.",
        x = "Day of Week",
        y = "Trip Count") + 
   guides(fill = guide_legend(title = "Member Type")) + 
+  geom_text(aes(label = paste(percent * 100, "%", sep = "")), colour = "black", vjust = -0.35, size = 3) + 
+  geom_text(aes(label = format(trip_count, big.mark = ",", scientific = FALSE)), colour = "black", vjust = 1.25, size = 3) + 
   scale_fill_manual(values = cbPalette) + 
   theme_light()
+
+ggsave(filename = "trips_by_member_type_and_day_of_week.png",
+       path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
+       width = 7,
+       height = 4,
+       dpi = 600)
 ```
 
-Saturday is the busiest day of the week for Cyclistic in terms of overall trip volume.
+#### Observations
 
-However, mid-week is the peak in trips for members, occuring on Tuesday, Wednesday and Thursday.
+Casual riders show a notable increase in trip counts on Saturdays, indicating that weekends are the peak period for this customer type. Saturday has the highest trip count among all days.
 
-Although not definitive, this data does support the hypothesis that members are using bikes to commute to and from work during the week, and that casual riders are using Cyclistic for more recreational opportunities the city provides.
+Weekday usage for casual riders remains relatively consistent, with Monday through Thursday showing similar trip counts. While there is a slight increase on Friday, the significant peak is observed on Saturday.
+
+Mondays tend to have the lowest trip count for casual riders. This could be attributed to a slower start to the week, with users potentially engaging less in bike-sharing activities.
+
+Members exhibit a consistent pattern of higher trip counts on weekdays (Monday through Friday). Weekdays, particularly Tuesday through Thursday, have the highest trip counts for members.
+
+Members show a decline in trip counts on Saturdays and Sundays, with Saturday having the lowest trip count among all days. This suggests that members are less active in bike-sharing activities during the weekends.
+
+#### Opportunities
+
+Tailor communication strategies based on the preferred usage days of each customer type. Highlighting specific benefits, promotions, or events during days with lower trip counts for each group can be more effective.
 
 ### Trips by Hour of Day
 
-```{r trips_by_hour}
-start_trips <- trip %>%
-  group_by(start_hour_of_day, day_of_week, member_type) %>%
+Analyzing trips by the hour of the day offers additional granularity and insights into the temporal patterns of bike-sharing usage.
+
+Understand the proportion of trips with the same start and end hour to inform the choice between using the starting hour or ending hour as a representative data point for the time of a trip.
+
+```{r trips_by_start_end_proportion}
+trips_by_start_end_proportion <- trip %>%
+  group_by(start_end_category) %>%
   summarise(trip_count = n()) %>%
-  mutate(hour_type = "Start") %>%
-  rename(hour_of_day = start_hour_of_day)
-
-end_trips <- trip %>%
-  group_by(end_hour_of_day, day_of_week, member_type) %>%
-  summarise(trip_count = n()) %>%
-  mutate(hour_type = "End") %>%
-  rename(hour_of_day = end_hour_of_day)
-
-trips_by_hour <- rbind(start_trips, end_trips)
-```
-
-
-
-```{r trips_by_start_hour}
-trips_by_start_hour <- trips_by_hour %>%
-  filter(hour_type == "Start") %>%
-  select(-member_type) %>%
-  group_by(hour_of_day, day_of_week) %>%
-  summarise(trip_count = sum(trip_count)) %>%
-  mutate(hour_of_day = str_pad(as.character(hour_of_day), 2, "left", "0")) %>%
-  arrange(hour_of_day) %>%
-  pivot_wider(names_from = day_of_week, values_from = trip_count) %>%
-  ungroup() %>%
+  mutate(percent = round(trip_count / sum(trip_count), 2)) %>%
   bind_rows(summarise(., across(where(is.numeric), sum),
-                      across(where(is.character), ~ "Combined"))) %>%
-  mutate(total = rowSums(across(where(is.numeric))))
+                      across(where(is.character), ~ "Combined")))
 
-kable(trips_by_start_hour,
-      col.names = c("Hour", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Total"),
-      caption = "Trips by Start Hour",
+kable(trips_by_start_end_proportion,
+      col.names = c("Category", "Trip Count", "Percent"),
+      caption = "Trips by Start & End Hours",
       format.args = list(big.mark = ","),
-      align = c("l", "r", "r", "r", "r", "r", "r", "r", "r"))
+      align = c("l", "r", "r"))
 ```
 
+Trips with the same start and end hour are the dominant category, and analyzing this group could provide valuable insights into the overall usage patterns during the entire duration of a trip.
 
+The second category, although smaller, could be interesting to explore. Trips where the starting and ending hours are different might indicate instances where users begin their journey at one time and conclude it later. This could be due to factors like extended breaks or intermediate stops during a trip.
 
-```{r trips_by_end_hour}
-trips_by_end_hour <- trips_by_hour %>%
-  filter(hour_type == "Start") %>%
-  select(-member_type) %>%
-  group_by(hour_of_day, day_of_week) %>%
-  summarise(trip_count = sum(trip_count)) %>%
-  mutate(hour_of_day = str_pad(as.character(hour_of_day), 2, "left", "0")) %>%
-  arrange(hour_of_day) %>%
-  pivot_wider(names_from = day_of_week, values_from = trip_count) %>%
-  ungroup() %>%
-  bind_rows(summarise(., across(where(is.numeric), sum),
-                      across(where(is.character), ~ "Combined"))) %>%
-  mutate(total = rowSums(across(where(is.numeric))))
+Analyze patterns within the second category might identify any specific trends or behaviors. For example, users may start a trip in the morning and finish it in the evening, suggesting a day-long bike-sharing activity.
 
-kable(trips_by_end_hour,
-      col.names = c("Hour", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Total"),
-      caption = "Trips by Start Hour",
+Conducting a combined analysis that looks at both starting and ending hours should generate a comprehensive understanding of the temporal aspects of bike-sharing trips.
+
+Generate a summary of trips by hour of day retaining the hour type for combined analysis.
+
+The following code segment creates a data frame to represent hours of the day.  It defines a function to count active trips for each hour, considering the start and end hours of trips. The code then applies this function to generate a new data frame with counts of active trips for each hour. 
+
+The goal is to analyze and summarize the number of active trips during different hours of the day based on the trip start and end times, accounting for trips that overlap multiple hour intervals.
+
+```{r trips_by_hour_interval}
+hours <- 0:23
+
+hourly_counts <- data.frame(hour_of_day = hours)
+
+count_active_trips <- function(current_hour, start_hour, end_hour) {
+  
+  sum(start_hour <= current_hour & end_hour >= current_hour)
+
+}
+
+hourly_counts <- hourly_counts %>%
+  rowwise() %>%
+  mutate(active_trip_count = count_active_trips(hour_of_day, trip$start_hour_of_day, trip$end_hour_of_day))
+
+kable(hourly_counts,
+      col.names = c("Hour", "Active Trip Count"),
+      caption = "Active Trips by Hour Interval",
       format.args = list(big.mark = ","),
-      align = c("l", "r", "r", "r", "r", "r", "r", "r", "r"))
+      align = c("l", "r"))
 ```
 
+Then plot the summary.
 
-
-```{r plot_trips_by_hour}
-ggplot(trips_by_hour, aes(x = hour_of_day, y = trip_count, fill = hour_type)) +
-  geom_bar(stat = "identity") + 
-  labs(title = "Trips by Hour of Day",
+```{r plot_trips_by_hour_interval}
+ggplot(hourly_counts, aes(x = hour_of_day, y = active_trip_count)) +
+  geom_bar(stat = "identity", fill = cbPalette[2]) + 
+  geom_smooth(se = FALSE, colour = cbPalette[1]) +
+  labs(title = "Active Trips by Hour Interval",
    subtitle = "Trips peak between the hours of 7:00-9:00 am and 4:00-6:00 pm.",
    x = "Hour of Day",
-   y = "Trip Count") + 
-  guides(fill=guide_legend(title="Hour Type")) + 
+   y = "Active Trip Count") + 
+  # guides(fill=guide_legend(title="Hour Type")) + 
   scale_fill_manual(values = cbPalette) + 
   theme_light()
+
+ggsave(filename = "trips_by_hour_interval.png",
+       path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
+       width = 7,
+       height = 4,
+       dpi = 600)
 ```
 
-As you might expect, trips tend to rise over the course of the morning hours, starting at roughly 7:00 am and peak in the mid-afternoon hours (i.e. 4:00-6:00 pm), then decline during the evening hours.  4:00-6:00 pm hours are the peak time for both starting and ending trips.  
-
-Curious to know whether this pattern changes when considering weekdays versus weekend days.
-
-There is a similar pattern across all days of week, except that weekend days (Saturday and Sunday) have a pattern that more closely resembles a normal distribution, with rides steadily increasing, beginning at 8:00 am, peaking at approximately 3:00 pm, then steadily declining in the late afternoon and evening hours.  This pattern is distinct from the weekday pattern described above.
-
-Also, when the data is separated by weekday, there is another pattern in the weekday data: an early morning peak that occurs between the hours of 7:00-8:00 am.  
-
-These patterns suggest that during the week, customers are using the bike-sharing service to commute to and from work, while on weekends, customers are using the service for other, presumably recreational purposes during the daytime hours.
-
-Is there any additional insight to be gained by viewing this data by member type?
+Plot trips by hour of day and day of week.
 
 ```{r plot_trips_by_hour_of_day}
 start_trips <- trip %>%
   group_by(start_hour_of_day, day_of_week, member_type) %>%
-  summarise(ride_count = n()) %>%
+  summarise(trip_count = n()) %>%
   mutate(type = "Start") %>%
   rename(hour_of_day = start_hour_of_day)
 
 end_trips <- trip %>%
   group_by(end_hour_of_day, day_of_week, member_type) %>%
-  summarise(ride_count = n()) %>%
+  summarise(trip_count = n()) %>%
   mutate(type = "End") %>%
   rename(hour_of_day = end_hour_of_day)
 
 trips_by_hour_v2 <- rbind(start_trips, end_trips) %>%
   select(-type)
 
-ggplot(trips_by_hour, aes(x = hour_of_day, y = ride_count, fill = member_type)) +
+ggplot(trips_by_hour_v2, aes(x = hour_of_day, y = trip_count, fill = member_type)) +
   geom_bar(stat = "identity") +
   facet_grid(rows = vars(day_of_week)) + 
   labs(title = "Trips by Member Type & Day of Week",
@@ -495,47 +672,59 @@ ggplot(trips_by_hour, aes(x = hour_of_day, y = ride_count, fill = member_type)) 
   guides(fill=guide_legend(title = "Member Type")) + 
   scale_fill_manual(values = cbPalette) + 
   theme_light()
+
+ggsave(filename = "trips_by_hour_of_day.png",
+       path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
+       width = 7,
+       height = 4,
+       dpi = 600)
 ```
 
-The same patterns persist; however, there are casual members who are using the bike-sharing service for commutes during the week.  In addition, there are a greater number of casual riders who are using the service on weekend days.  
+#### Observations
 
-These patterns suggest a two-part strategy for converting casual riders to members:
+The peak hours for bike-sharing usage across all days are typically between 7 AM and 9 AM, and 4 PM and 6 PM. These periods coincide with typical commuting times, suggesting that a significant portion of trips is related to daily commuting activities.
 
-* Highlighting the benefits of member status for commutes to and from work, and
-* Engaging these casual riders as members for recreational rides as well.
+There is a clear pattern of increasing active trip counts in the morning hours, peaking around hours 8 to 9, followed by a decrease in the afternoon. The evening hours (16 to 17) exhibit another peak, likely associated with the evening commute.
 
-To support this conversion, the marketing department should highlight the potential expense savings of a membership for a typical commuter, and the added benefits when the service is used for recreation in addition to commuting.
+Hours 10 to 15, representing midday, maintain relatively stable and moderate levels of active trips.
 
-### Common Daily Trips
+Weekdays show a distinct pattern with two peaks corresponding to morning and evening commuting hours. On weekends, the usage pattern is more evenly distributed throughout the day, with a single peak in the afternoon.
 
-What are the most common daily trips, and how do these trips vary by day of week and member type?
+#### Opportunities
 
-```{r}
-most_common_starts <- trip %>%
-  group_by(day_of_week, start_station_name) %>%
-  summarise(trip_count = n()) %>%
-  arrange(desc(trip_count)) %>%
-  mutate(percent = round(trip_count / sum(trip_count), 3)) %>%
-  top_n(n = 30)
-  
-most_common_ends <- trip %>%
-  group_by(day_of_week, end_station_name) %>%
-  summarise(trip_count = n()) %>%
-  arrange(desc(trip_count)) %>%
-  mutate(percent = round(trip_count / sum(trip_count), 3)) %>%
-  top_n(n = 30)
+Highlight member benefits during peak commuting hours to encourage membership subscriptions. Memberships with additional benefits during rush hours could incentivize regular users.
 
+During the peak morning hours (7 to 9), there's a significant influx of users, likely related to the morning commute. Consider offering incentives, promotions, or discounts during these hours to encourage more casual riders to use the bike-sharing service for their commute.
+
+Leverage the peak in active trip counts during the late afternoon (16 to 17) to target casual riders who may be commuting home. Promotions like discounted rides, referral programs, or membership trials during these hours could entice more users.
+
+### Geographic Density Analysis
+
+To get a sense of how the trip data relates to geographic of the city, let’s look at dot density maps. 
+
+To start, create a bounding box for Chicago to get geographic boundaries in latitude and longitude.  Print the coordinates.
+
+```{r get_boundary_coordinates}
+bb <- getbb("Chicago, IL"); bb
+```
+
+The variable 'x' represents longitude, and variable 'y' represents latitude.
+
+Use these coordinates to setup a simple feature geometric object for visuals (i.e. maps).
+
+```{r setup_sf}
+csf <- coord_sf(xlim = c(bb[1, 1], bb[2, 1]), ylim = c(bb[1, 2], bb[2, 2]), expand = TRUE)
 ```
 
 ### Chicago Data Portal
 
-The [Chicago Data Portal](https://data.cityofchicago.org/) lets you find city data and create maps and graphs about the city.  Users can freely download the data for their analyses.
+The [Chicago Data Portal](https://data.cityofchicago.org/) enables analysts to find city data and create maps and graphs about the city.  Users can freely download the data for their analyses.
 
 I downloaded shape files from the portal to create maps of Cyclistic bike-sharing stations, visualize station usage, and understand the relationship between stations and features of the city, i.e. communities, parks, and landmarks.
 
-I downloaded the corresponding shape files and use them to generate maps.
+I downloaded the corresponding shape files and use them to generate maps.  These shape files contain boundaries of communities, parks, landmarks (both local and national), and bike routes within the city.  I also include a shape file for the boundaries of Chicago's central business district.
 
-```{r read_shape_files}
+```{r read_shape_files, message = FALSE}
 communities <- st_read("C:/R/Packages/cyclistic/inst/extdata/chicago/communities/geo_export_03f8c85a-4634-44fb-bcb9-4653575ff11b.shp")
 
 parks <- st_read("C:/R/Packages/cyclistic/inst/extdata/chicago/parks/geo_export_cc5e1418-25db-49e7-a6fd-af8782efc515.shp")
@@ -545,143 +734,325 @@ landmarks <- st_read("C:/R/Packages/cyclistic/inst/extdata/chicago/landmarks/Chi
 national_landmarks <- st_read("C:/R/Packages/cyclistic/inst/extdata/chicago/national/LandmarksNationalRegister_nov2012.shp")
 
 routes <- st_read("C:/R/Packages/cyclistic/inst/extdata/chicago/routes/geo_export_a6173042-ca11-4e91-bb92-fa19586fbb96.shp")
-  
+
+business <- st_read("C:/R/Packages/cyclistic/inst/extdata/chicago/business/geo_export_f4ec6c23-2aae-4c59-8822-17d79b57d91f.shp")
 ```
 
-```{r}
-start_stations <- trip %>%
-  group_by(category_of_day, start_station_name, start_longitude, start_latitude) %>%
+### Geographic Density of Trips
+
+#### Trip Starts
+
+What are the most common daily trips, and how do these trips vary by day of week and member type?
+
+Start by generating a data frame that contains the trip count for each starting station in descending order of count.  Include relative frequency for each station.
+
+```{r trip_starts}
+trip_starts <- trip %>%
+  group_by(start_station_name, start_longitude, start_latitude) %>%
   summarise(trip_count = n()) %>%
-  distinct_all() %>%
   arrange(desc(trip_count)) %>%
   ungroup() %>%
-  filter(category_of_day == "Weekend") %>%
-  filter(between(row_number(), 1, 100)) %>%
-  mutate(type = "Start") %>%
-  rename(station_name = start_station_name, 
-         longitude = start_longitude, 
-         latitude = start_latitude)
-  
-end_stations <- trip %>%
-  group_by(category_of_day, end_station_name, end_longitude, end_latitude) %>%
-  summarise(trip_count = n()) %>%
-  distinct_all() %>%
-  arrange(desc(trip_count)) %>%
-  ungroup() %>%
-  filter(category_of_day == "Weekend") %>%
-  filter(between(row_number(), 1, 100)) %>%
-  mutate(type = "End") %>%
-  rename(station_name = end_station_name, 
-         longitude = end_longitude, 
-         latitude = end_latitude)
-
-stations <- rbind(start_stations, end_stations)
-
-ggplot(data = communities) +
-    geom_sf(fill = "grey", alpha = 0.3) +
-    geom_point(data = stations, aes(x = longitude, 
-                                    y = latitude, 
-                                    size = trip_count,
-                                    color = trip_count,
-                                    alpha=I(0.1))) +
-    coord_sf(xlim = c(-87.85, -87.52), 
-             ylim = c(41.65, 42.07), 
-             expand = TRUE) +
-  facet_grid(cols = vars(type)) +
-  labs(title = "Stations by Trip Count",
-    subtitle = "....",
-    x = "Longitude",
-    y = "Latitude") + 
-  guides(fill=guide_legend(title = "Trip Count")) + 
-  scale_fill_manual(values = cbPalette) + 
-  theme_light()
-```
-```{r}
-start_stations <- trip %>%
-  group_by(category_of_day, start_station_name, start_longitude, start_latitude) %>%
-  summarise(trip_count = n()) %>%
-  distinct_all() %>%
-  arrange(desc(trip_count)) %>%
-  ungroup() %>%
-  filter(category_of_day == "Workweek") %>%
-  filter(between(row_number(), 1, 100)) %>%
-  mutate(type = "Start") %>%
-  rename(station_name = start_station_name, 
-         longitude = start_longitude, 
-         latitude = start_latitude)
-  
-end_stations <- trip %>%
-  group_by(category_of_day, end_station_name, end_longitude, end_latitude) %>%
-  summarise(trip_count = n()) %>%
-  distinct_all() %>%
-  arrange(desc(trip_count)) %>%
-  ungroup() %>%
-  filter(category_of_day == "Workweek") %>%
-  filter(between(row_number(), 1, 100)) %>%
-  mutate(type = "End") %>%
-  rename(station_name = end_station_name, 
-         longitude = end_longitude, 
-         latitude = end_latitude)
-
-stations <- rbind(start_stations, end_stations)
-
-ggplot(data = communities) +
-    geom_sf(fill = "grey", alpha = 0.3) +
-    geom_point(data = stations, aes(x = longitude, 
-                                    y = latitude, 
-                                    size = trip_count,
-                                    color = trip_count,
-                                    alpha=I(0.1))) +
-    coord_sf(xlim = c(-87.85, -87.52), 
-             ylim = c(41.65, 42.07), 
-             expand = TRUE) +
-  facet_grid(cols = vars(type)) +
-  labs(title = "Stations by Trip Count",
-    subtitle = "....",
-    x = "Longitude",
-    y = "Latitude") + 
-  guides(fill=guide_legend(title = "Trip Count")) + 
-  scale_fill_manual(values = cbPalette) + 
-  theme_light()
+  mutate(percent = round(trip_count / sum(trip_count), 2))
 ```
 
-### Parks
+Plot trip starts.
 
-```{r}
+```{r plot_trip_starts}
 ggplot() +
-  geom_sf(data = communities, fill = "white") + 
-  geom_sf(data = parks, fill = "#E69F00") + 
-  labs(title = "Trips by Member Type & Day of Week",
-    subtitle = "....",
-    x = "Longitude",
-    y = "Latitude") + 
-  scale_fill_manual(values = cbPalette) + 
+  geom_sf(data = communities, fill = "grey", alpha = 0.1) +
+  geom_point(data = trip_starts, 
+             aes(x = start_longitude, 
+                 y = start_latitude,
+                 colour = "#E69F00")) + 
+  scale_color_identity() +
+  csf + 
+  geom_sf(data = business, fill = "grey", alpha = 0.4) +
+  labs(title = "Geographic Density of Trip Starts",
+       subtitle = "Trip starts are concentrated in and around Chicago's central business district.",
+       x = "Longitude",
+       y = "Latitude") + 
   theme_light()
+
+ggsave(filename = "trip_starts.png",
+       path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
+       width = 7,
+       height = 4,
+       dpi = 600)
 ```
 
-### Landmarks
+#### Trip Ends
 
-```{r}
+Do the same for ending stations.
+
+```{r trip_ends}
+trip_ends <- trip %>%
+  group_by(end_station_name, end_longitude, end_latitude) %>%
+  summarise(trip_count = n()) %>%
+  arrange(desc(trip_count)) %>%
+  ungroup() %>%
+  mutate(percent = round(trip_count / sum(trip_count), 2))
+```
+
+Plot trip ends.
+
+```{r plot_trip_ends}
 ggplot() +
-  geom_sf(data = communities, fill = "white") + 
-  geom_sf(data = landmarks, fill = "blue")
+  geom_sf(data = communities, fill = "grey", alpha = 0.1) +
+  geom_point(data = trip_ends, 
+             aes(x = end_longitude, 
+                 y = end_latitude,
+                 colour = "#E69F00")) + 
+  scale_color_identity() +
+  csf + 
+  geom_sf(data = business, fill = "grey", alpha = 0.4) +
+  labs(title = "Geographic Density of Trip Ends",
+       subtitle = "Trip ends are also concentrated in and around Chicago's central business district.",
+       x = "Longitude",
+       y = "Latitude") + 
+  theme_light()
+
+ggsave(filename = "trip_ends.png",
+       path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
+       width = 7,
+       height = 4,
+       dpi = 600)
 ```
 
-### National Landmarks
+### Plot Trip Density Using Stadia Maps
 
-```{r}
-ggplot() +
-  geom_sf(data = communities, fill = "white") + 
-  geom_sf(data = national_landmarks, fill = "blue")
+Code below uses stamen map tiles served by Stadia Maps to plot trip density.  I am using Stadia Maps to see if the plots are more easily read (versus shape files). 
+
+Note that, to use Stadia Maps, you will need to setup an account and generate an API key. The code below using the keyring package to retrieve my personal API key from my local machine.
+
+Get Stadia map for Chicago
+
+```{r get_api_key}
+register_stadiamaps(key = keyring::key_get(service = "Stadia",
+                                           username = "donnie.minnick@gmail.com"))
+
+chicago_sm <- get_stadiamap(bbox = c(bb[1,1], bb[2,1], 
+                                     bb[1,2], bb[2,2]),
+                            maptype = "stamen_toner_lite")
 ```
+
+```{r stadia_plot_trip_starts}
+ggmap(chicago_sm) + 
+  geom_point(data = trip_starts, 
+             aes(x = start_longitude, 
+                 y = start_latitude,
+                 colour = "#E69F00")) + 
+  scale_color_identity() +
+  labs(title = "Geographic Density of Trip Starts",
+       subtitle = "Trip starts are concentrated in and around Chicago's central business district.",
+       x = "Longitude",
+       y = "Latitude") + 
+  theme_light()
+
+ggsave(filename = "trip_starts_stadia.png",
+       path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
+       width = 7,
+       height = 4,
+       dpi = 600)
+```
+
+```{r stadia_plot_trip_ends}
+ggmap(chicago_sm) + 
+  geom_point(data = trip_ends, 
+             aes(x = end_longitude, 
+                 y = end_latitude,
+                 colour = "#E69F00")) + 
+  scale_color_identity() +
+  labs(title = "Geographic Density of Trip Ends",
+       subtitle = "Trip ends are concentrated in and around Chicago's central business district.",
+       x = "Longitude",
+       y = "Latitude") + 
+  theme_light()
+
+ggsave(filename = "trip_ends_stadia.png",
+       path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
+       width = 7,
+       height = 4,
+       dpi = 600)
+```
+
+#### Observations
+
+The concentration of bike-sharing activity in and around Chicago's central Business District (CBD) suggests that the bike-sharing service is heavily utilized in areas where people work, conduct business, or engage in commercial and recreational activities.
+
+Many trips could be associated with commuting to and from workplaces in the CBD, or users may be utilizing bikes for business-related purposes, such as meetings or appointments.  The CBD may also serve as a hub for recreational activities and tourist attractions.
+
+The widespread distribution of trip starts and ends throughout the entire Chicago area indicates that bike-sharing is not limited to a specific region but is accessible and used across various neighborhoods and communities.
+
+Trips starting and ending in diverse locations suggest that bike-sharing is not solely a commuting service. Residents in different neighborhoods may use it for local transportation.  Bike-sharing might be popular among tourists exploring different parts of the city.  The service may be well-integrated into the city's transportation network, facilitating point-to-point travel.
+
+#### Opportunities
+
+The combination of concentrated activity in the CBD and dispersed trips across the city suggests the bike-sharing service caters to diverse needs, including commuting, recreation, and local transportation.
+
+Bike-sharing can serve as a solution for last-mile connectivity. Identify transportation hubs, such as train stations or bus stops, and strategically place bike-sharing stations to facilitate seamless travel for commuters completing the last leg of their journey.
+
+If trips are dispersed throughout the city, consider targeting tourism hubs and popular attractions. Promote bike-sharing as a convenient and eco-friendly way for tourists to explore the city's diverse neighborhoods and landmarks.
+
+#### Chicago Geography
+
+The presence of a critical mass of bike routes throughout Chicago, combined with local and national landmarks, presents various observations and opportunities for enhancing the city's bike-sharing system:
 
 ### Bike Routes
 
-```{r}
-ggplot() +
-  geom_sf(data = communities, fill = "white") + 
-  geom_sf(data = routes, fill = "blue")
+Generate summary of bike routes.
+
+```{r summarize_bike_routes}
+route_summary <- as.data.frame(routes) %>%
+  select(displayrou, mi_ctrline) %>%
+  mutate(displayrou = str_to_title(displayrou)) %>%
+  group_by(displayrou) %>%
+  summarise(count = n(),
+            total_miles = round(sum(mi_ctrline), 0)) %>%
+  arrange(desc(total_miles)) %>%
+  bind_rows(summarise(., across(where(is.numeric), sum),
+                      across(where(is.character), ~ "Combined")))
+
+kable(route_summary,
+      col.names = c("Route Type", "Route Count", "Total Miles"),
+      caption = "Summary of Chicago Bike Routes",
+      format.args = list(big.mark = ","),
+      align = c("l", "r", "r"))
 ```
 
+Chicago has a total of 953 bike routes throughout the city, covering 369 miles based on measurement of route center lines.
 
+Plot bike routes to visualize the network of routes.
 
+```{r plot_bike_routes}
+ggplot() +
+  geom_sf(data = communities, fill = "white") + 
+  geom_sf(data = routes, fill = "blue") + 
+  labs(title = "Existing Bike Routes in Chicago",
+    subtitle = "....",
+    x = "Longitude",
+    y = "Latitude") + 
+  scale_fill_manual(values = cbPalette) + 
+  theme_light()
+
+ggsave(filename = "bike_routes.png",
+       path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
+       width = 7,
+       height = 4,
+       dpi = 600)
+```
+
+The extensive network of bike routes indicates a high level of connectivity, making it feasible for users to navigate through various parts of the city using bikes.
+
+The well-connected infrastructure contributes to the attractiveness of bike-sharing, as users can travel efficiently and safely.
+
+### Parks
+
+Chicago has `r format(sum(parks$acres), big.mark = ",", scientific = FALSE)` acres of park land throughout the city that support a broad range of recreational activities.
+
+Plot parks.
+
+```{r plot_parks}
+ggplot() +
+  geom_sf(data = communities, fill = "white") + 
+  geom_sf(data = parks, fill = "#E69F00") + 
+  labs(title = "Existing Parks in Chicago.",
+    subtitle = "....",
+    x = "Longitude",
+    y = "Latitude") + 
+  scale_fill_manual(values = cbPalette) + 
+  theme_light()
+
+ggsave(filename = "parks.png",
+       path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
+       width = 7,
+       height = 4,
+       dpi = 600)
+```
+
+Bike routes that traverse parks often offer scenic and enjoyable paths. Cyclists can experience a more pleasant and aesthetically pleasing journey, making biking a more enjoyable and attractive mode of transportation.
+
+### Landmarks
+
+Chicago has `r format(nrow(landmarks), big.mark = ",", scientific = FALSE)` local landmarks throughout the city.
+
+Plot landmarks.
+
+```{r plot_local_landmarks}
+ggplot() +
+  geom_sf(data = communities, fill = "white") + 
+  geom_sf(data = landmarks, fill = "#E69F00") + 
+  labs(title = "Existing Local Landmarks in Chicago.",
+    subtitle = "....",
+    x = "Longitude",
+    y = "Latitude") + 
+  scale_fill_manual(values = cbPalette) + 
+  theme_light()
+
+ggsave(filename = "local_landmarks.png",
+       path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
+       width = 7,
+       height = 4,
+       dpi = 600)
+```
+
+The concentration of landmarks and national landmarks suggests focal points of interest and cultural significance.
+
+These central locations create opportunities for bike-sharing services to cater to tourists, residents, and event-goers who may want convenient and sustainable transportation options to explore these landmarks.
+
+### National Landmarks
+
+Chicago has `r format(nrow(national_landmarks), big.mark = ",", scientific = FALSE)` national landmarks throughout the city.
+
+Plot national landmarks.
+
+```{r plot_national_landmarks}
+ggplot() +
+  geom_sf(data = communities, fill = "white") + 
+  geom_sf(data = national_landmarks, fill = "#E69F00") + 
+  labs(title = "National Landmarks in Chicago.",
+    subtitle = "....",
+    x = "Longitude",
+    y = "Latitude") + 
+  scale_fill_manual(values = cbPalette) + 
+  theme_light()
+
+ggsave(filename = "national_landmarks.png",
+       path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
+       width = 7,
+       height = 4,
+       dpi = 600)
+```
+
+Landmarks and national landmarks often attract tourists, creating potential opportunities for bike-sharing services.  Bike-sharing can be promoted as a tourist-friendly transportation mode, allowing visitors to explore the city at their own pace, visit attractions, and experience the local culture.
+
+#### Observations
+
+Collaborations with museums, theaters, and other cultural venues can boost awareness and usage, creating a symbiotic relationship between bike-sharing and cultural experiences.
+
+#### Opportunities
+
+Establish partnerships with cultural institutions near landmarks for joint promotional activities.
+
+Extend bike-sharing services to neighborhoods surrounding landmarks to capture both tourist and local resident markets.
+
+Explore collaborations with tourism services to offer bundled packages that include bike-sharing along with guided tours or city passes.
+
+### Limitations & Future Analysis Opportunities
+
+While the trips data was useful for generating insights into customer usage of the bike-sharing service, some enhancements would be beneficial to future analyses.
+
+Conduct surveys or gather user feedback to understand the motivations and preferences of both casual riders and members. Insights into why members prefer shorter trips and how casual riders perceive longer rides can inform targeted strategies.
+
+Understand usage of residents versus non-residents will help understand the impact of tourism on customer activity and help generate a more realistic assessment of casual user conversion opportunity.
+
+Data on bicycle availability would enable Cyclistic to assess how availability impacts usage patterns.
+
+Analysis of pricing and how it influences customer behavior, e.g. trip duration, usage over time, etc.
+
+Analysis of customer demographics and how this influences usage, i.e. age, fitness level, cycling experience.
+
+Mode of transportation integration, i.e. how are casual riders and members integrating the service with other modes of transportation?  Is there a "last mile" dynamic present in customer behavior, i.e. using the bike-sharing service for the final leg of a journey, typically from a transportation hub (like a train or bus station) to the final destination, which might be just a short distance away.  This data could shed additional light on why there are so many short-duration trips in the data.
+
+## Next Steps
+
+The next step in this project is to share the data for stakeholder review and action.
