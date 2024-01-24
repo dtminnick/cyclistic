@@ -59,6 +59,23 @@ Specify a color-blind-friendly palette of eight colors for use with charts and v
 cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 ```
 
+### Custom ggplot Theme
+
+Create a modern, minimal custom theme for visuals.
+
+```{r create_ggplot_theme}
+cyclistic_theme <- theme_light() +
+    theme(plot.background = element_rect(fill = "white"),
+          panel.background = element_rect(fill = "lightgray"),
+          text = element_text(color = "black"),
+          axis.text = element_text(size = 10),
+          legend.position = "right",
+          legend.background = element_rect(fill = "lightgray"),
+          plot.title = element_text(size = 12, hjust = 0.5, vjust = 1, face = "bold"),
+          plot.subtitle = element_text(size = 11, hjust = 0.5, vjust = 1),
+          plot.margin = margin(1, 1, 1, 1, unit = "cm"))
+```
+
 ## Exploratory Analysis
 
 ### Proportion of Trips Taken by Customer Type
@@ -101,7 +118,7 @@ ggplot(trips_by_member_type[1:2,], aes(x = member_type, y = trip_count)) +
   geom_text(aes(label = paste(percent * 100, "%", sep = "")), colour = "black", vjust = -0.35, size = 3) + 
   geom_text(aes(label = format(trip_count, big.mark = ",", scientific = FALSE)), colour = "black", vjust = 1.25, size = 3) + 
   scale_fill_manual(values = cbPalette) + 
-  theme_light()
+  cyclistic_theme
 
 ggsave(filename = "trips_by_member_type.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
@@ -158,7 +175,7 @@ ggplot(trips_by_member_type_and_month, aes(x = month, y = trip_count)) +
   geom_text(aes(label = paste(percent * 100, "%", sep = "")), colour = "black", vjust = -0.35, size = 3) + 
   geom_text(aes(label = format(trip_count, big.mark = ",", scientific = FALSE)), colour = "black", vjust = 1.25, size = 3) + 
   scale_fill_manual(values = cbPalette) + 
-  theme_light()
+  cyclistic_theme
 
 ggsave(filename = "trips_by_member_type_and_month.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
@@ -240,7 +257,7 @@ ggplot(trips_by_ride_type[1:3,], aes(x = ride_type, y = trip_count)) +
   geom_text(aes(label = paste(percent * 100, "%", sep = "")), colour = "black", vjust = -0.35, size = 3) + 
   geom_text(aes(label = format(trip_count, big.mark = ",", scientific = FALSE)), colour = "black", vjust = 1.25, size = 3) + 
   scale_fill_manual(values = cbPalette) + 
-  theme_light()
+  cyclistic_theme
 
 ggsave(filename = "trips_by_ride_type.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
@@ -303,7 +320,7 @@ ggplot(trips_by_member_and_ride_type_v2, aes(x = ride_type, y = trip_count)) +
   geom_text(aes(label = format(trip_count, big.mark = ",", scientific = FALSE)), colour = "black", vjust = 1.25, size = 3) + 
   guides(fill=guide_legend(title="Ride Type")) + 
   scale_fill_manual(values = cbPalette) + 
-  theme_light()
+  cyclistic_theme
 
 ggsave(filename = "trips_by_member_and_ride_type.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
@@ -362,7 +379,7 @@ ggplot(trip, aes(x = trip_duration_in_minutes, fill = member_type)) +
      y = "Trip Count") + 
   guides(fill=guide_legend(title="Member Type")) + 
   scale_fill_manual(values = cbPalette) + 
-  theme_light()
+  cyclistic_theme
 
 ggsave(filename = "trips_by_member_type_and_duration.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
@@ -383,7 +400,7 @@ ggplot(trip, aes(x = trip_duration_in_minutes, fill = category_of_day)) +
    y = "Trip Count") + 
   guides(fill=guide_legend(title="Category of Day")) + 
   scale_fill_manual(values = cbPalette) + 
-  theme_light()
+  cyclistic_theme
 
 ggsave(filename = "trips_by_member_type_and_day_category.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
@@ -404,7 +421,7 @@ ggplot(trip, aes(x = trip_duration_in_minutes, fill = member_type)) +
    y = "Trip Count") + 
   guides(fill=guide_legend(title="Member Type")) + 
   scale_fill_manual(values = cbPalette) + 
-  theme_light()
+  cyclistic_theme
 
 ggsave(filename = "trips_by_member_type_and_day_of_week.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
@@ -424,7 +441,7 @@ ggplot(trip, aes(x = trip_duration_in_minutes, fill = member_type)) +
     y = "Density") + 
   guides(fill = guide_legend(title = "Member Type")) + 
   scale_fill_manual(values = cbPalette) + 
-  theme_light()
+  cyclistic_theme
 
 ggsave(filename = "trips_by_member_type_and_duration_density.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
@@ -447,7 +464,7 @@ ggplot(trip,
     y = "Density") + 
   guides(fill = guide_legend(title = "Member Type")) + 
   scale_fill_manual(values = cbPalette) + 
-  theme_light()
+  cyclistic_theme
 
 ggsave(filename = "trips_by_member_type_and_duration_split_density.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
@@ -541,7 +558,7 @@ ggplot(trips_by_member_type_and_day_of_week_v2, aes(x = day_of_week, y = trip_co
   geom_text(aes(label = paste(percent * 100, "%", sep = "")), colour = "black", vjust = -0.35, size = 3) + 
   geom_text(aes(label = format(trip_count, big.mark = ",", scientific = FALSE)), colour = "black", vjust = 1.25, size = 3) + 
   scale_fill_manual(values = cbPalette) + 
-  theme_light()
+  cyclistic_theme
 
 ggsave(filename = "trips_by_member_type_and_day_of_week.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
@@ -635,7 +652,7 @@ ggplot(hourly_counts, aes(x = hour_of_day, y = active_trip_count)) +
    y = "Active Trip Count") + 
   # guides(fill=guide_legend(title="Hour Type")) + 
   scale_fill_manual(values = cbPalette) + 
-  theme_light()
+  cyclistic_theme
 
 ggsave(filename = "trips_by_hour_interval.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
@@ -671,7 +688,7 @@ ggplot(trips_by_hour_v2, aes(x = hour_of_day, y = trip_count, fill = member_type
     y = "Trip Count") + 
   guides(fill=guide_legend(title = "Member Type")) + 
   scale_fill_manual(values = cbPalette) + 
-  theme_light()
+  cyclistic_theme
 
 ggsave(filename = "trips_by_hour_of_day.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
@@ -771,7 +788,7 @@ ggplot() +
        subtitle = "Trip starts are concentrated in and around Chicago's central business district.",
        x = "Longitude",
        y = "Latitude") + 
-  theme_light()
+  cyclistic_theme
 
 ggsave(filename = "trip_starts.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
@@ -809,7 +826,7 @@ ggplot() +
        subtitle = "Trip ends are also concentrated in and around Chicago's central business district.",
        x = "Longitude",
        y = "Latitude") + 
-  theme_light()
+  cyclistic_theme
 
 ggsave(filename = "trip_ends.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
@@ -846,7 +863,7 @@ ggmap(chicago_sm) +
        subtitle = "Trip starts are concentrated in and around Chicago's central business district.",
        x = "Longitude",
        y = "Latitude") + 
-  theme_light()
+  cyclistic_theme
 
 ggsave(filename = "trip_starts_stadia.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
@@ -866,7 +883,7 @@ ggmap(chicago_sm) +
        subtitle = "Trip ends are concentrated in and around Chicago's central business district.",
        x = "Longitude",
        y = "Latitude") + 
-  theme_light()
+  cyclistic_theme
 
 ggsave(filename = "trip_ends_stadia.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
@@ -932,7 +949,7 @@ ggplot() +
     x = "Longitude",
     y = "Latitude") + 
   scale_fill_manual(values = cbPalette) + 
-  theme_light()
+  cyclistic_theme
 
 ggsave(filename = "bike_routes.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
@@ -960,7 +977,7 @@ ggplot() +
     x = "Longitude",
     y = "Latitude") + 
   scale_fill_manual(values = cbPalette) + 
-  theme_light()
+  cyclistic_theme
 
 ggsave(filename = "parks.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
@@ -986,7 +1003,7 @@ ggplot() +
     x = "Longitude",
     y = "Latitude") + 
   scale_fill_manual(values = cbPalette) + 
-  theme_light()
+  cyclistic_theme
 
 ggsave(filename = "local_landmarks.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
@@ -1014,7 +1031,7 @@ ggplot() +
     x = "Longitude",
     y = "Latitude") + 
   scale_fill_manual(values = cbPalette) + 
-  theme_light()
+  cyclistic_theme
 
 ggsave(filename = "national_landmarks.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
