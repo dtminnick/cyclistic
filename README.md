@@ -15,7 +15,7 @@ This strategy has three parts:
 ## Outputs
 I generated the following outputs as part of this project:
 * detailed analysis notebooks published on RPubs for each phase of analysis: [Ask](https://rpubs.com/dtminnick/cyclistic_ask), [Prepare](https://rpubs.com/dtminnick/cyclistic_prepare), [Process](https://rpubs.com/dtminnick/cyclistic_process), [Analyze](https://rpubs.com/dtminnick/cyclistic_analyze), and [Share](https://rpubs.com/dtminnick/cyclistic_share),
-* an [executive presentation deck[(https://github.com/dtminnick/cyclistic/blob/main/inst/extdata/reference/Cyclistic%20Marketing%20Strategy%20Recommendations.pptx) summarizing findings and recommendations.
+* an [executive presentation deck](https://github.com/dtminnick/cyclistic/blob/main/inst/extdata/reference/Cyclistic%20Marketing%20Strategy%20Recommendations.pptx) summarizing findings and recommendations.
 
 ## Analysis Challenges & Solutions
 Here are the challenges I needed to overcome to complete this work and a summary of how I addressed each.
