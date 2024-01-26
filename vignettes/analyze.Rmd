@@ -59,23 +59,6 @@ Specify a color-blind-friendly palette of eight colors for use with charts and v
 cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 ```
 
-### Custom ggplot Theme
-
-Create a modern, minimal custom theme for visuals.
-
-```{r create_ggplot_theme}
-cyclistic_theme <- theme_light() +
-    theme(plot.background = element_rect(fill = "white"),
-          panel.background = element_rect(fill = "lightgray"),
-          text = element_text(color = "black"),
-          axis.text = element_text(size = 10),
-          legend.position = "right",
-          legend.background = element_rect(fill = "lightgray"),
-          plot.title = element_text(size = 12, hjust = 0.5, vjust = 1, face = "bold"),
-          plot.subtitle = element_text(size = 11, hjust = 0.5, vjust = 1),
-          plot.margin = margin(1, 1, 1, 1, unit = "cm"))
-```
-
 ## Exploratory Analysis
 
 ### Proportion of Trips Taken by Customer Type
@@ -117,8 +100,8 @@ ggplot(trips_by_member_type[1:2,], aes(x = member_type, y = trip_count)) +
        y = "Trip Count") + 
   geom_text(aes(label = paste(percent * 100, "%", sep = "")), colour = "black", vjust = -0.35, size = 3) + 
   geom_text(aes(label = format(trip_count, big.mark = ",", scientific = FALSE)), colour = "black", vjust = 1.25, size = 3) + 
-  scale_fill_manual(values = cbPalette) + 
-  cyclistic_theme
+  scale_fill_manual(values = cbPalette)
+  
 
 ggsave(filename = "trips_by_member_type.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
@@ -174,8 +157,8 @@ ggplot(trips_by_member_type_and_month, aes(x = month, y = trip_count)) +
   facet_grid(rows = vars(member_type)) + 
   geom_text(aes(label = paste(percent * 100, "%", sep = "")), colour = "black", vjust = -0.35, size = 3) + 
   geom_text(aes(label = format(trip_count, big.mark = ",", scientific = FALSE)), colour = "black", vjust = 1.25, size = 3) + 
-  scale_fill_manual(values = cbPalette) + 
-  cyclistic_theme
+  scale_fill_manual(values = cbPalette)
+  
 
 ggsave(filename = "trips_by_member_type_and_month.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
@@ -256,8 +239,8 @@ ggplot(trips_by_ride_type[1:3,], aes(x = ride_type, y = trip_count)) +
        y = "Trip Count") + 
   geom_text(aes(label = paste(percent * 100, "%", sep = "")), colour = "black", vjust = -0.35, size = 3) + 
   geom_text(aes(label = format(trip_count, big.mark = ",", scientific = FALSE)), colour = "black", vjust = 1.25, size = 3) + 
-  scale_fill_manual(values = cbPalette) + 
-  cyclistic_theme
+  scale_fill_manual(values = cbPalette)
+  
 
 ggsave(filename = "trips_by_ride_type.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
@@ -303,7 +286,7 @@ kable(trips_by_member_and_ride_type_v1,
 
 Plot ride type usage by customer type.
 
-```{r plot_trips_by_member_and_ride_type}
+```{r plot_trips_by_member_and_ride_type, message = FALSE}
 trips_by_member_and_ride_type_v2 <- trip %>%
   group_by(member_type, ride_type) %>%
   summarise(trip_count = n()) %>%
@@ -319,8 +302,8 @@ ggplot(trips_by_member_and_ride_type_v2, aes(x = ride_type, y = trip_count)) +
   geom_text(aes(label = paste(percent * 100, "%", sep = "")), colour = "black", vjust = -0.35, size = 3) + 
   geom_text(aes(label = format(trip_count, big.mark = ",", scientific = FALSE)), colour = "black", vjust = 1.25, size = 3) + 
   guides(fill=guide_legend(title="Ride Type")) + 
-  scale_fill_manual(values = cbPalette) + 
-  cyclistic_theme
+  scale_fill_manual(values = cbPalette)
+  
 
 ggsave(filename = "trips_by_member_and_ride_type.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
@@ -378,8 +361,8 @@ ggplot(trip, aes(x = trip_duration_in_minutes, fill = member_type)) +
      x = "Trip Duration",
      y = "Trip Count") + 
   guides(fill=guide_legend(title="Member Type")) + 
-  scale_fill_manual(values = cbPalette) + 
-  cyclistic_theme
+  scale_fill_manual(values = cbPalette)
+  
 
 ggsave(filename = "trips_by_member_type_and_duration.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
@@ -399,8 +382,8 @@ ggplot(trip, aes(x = trip_duration_in_minutes, fill = category_of_day)) +
    x = "Trip Duration",
    y = "Trip Count") + 
   guides(fill=guide_legend(title="Category of Day")) + 
-  scale_fill_manual(values = cbPalette) + 
-  cyclistic_theme
+  scale_fill_manual(values = cbPalette)
+  
 
 ggsave(filename = "trips_by_member_type_and_day_category.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
@@ -420,8 +403,8 @@ ggplot(trip, aes(x = trip_duration_in_minutes, fill = member_type)) +
    x = "Trip Duration",
    y = "Trip Count") + 
   guides(fill=guide_legend(title="Member Type")) + 
-  scale_fill_manual(values = cbPalette) + 
-  cyclistic_theme
+  scale_fill_manual(values = cbPalette)
+  
 
 ggsave(filename = "trips_by_member_type_and_day_of_week.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
@@ -440,33 +423,10 @@ ggplot(trip, aes(x = trip_duration_in_minutes, fill = member_type)) +
     x = "Trip Duration",
     y = "Density") + 
   guides(fill = guide_legend(title = "Member Type")) + 
-  scale_fill_manual(values = cbPalette) + 
-  cyclistic_theme
+  scale_fill_manual(values = cbPalette)
+  
 
 ggsave(filename = "trips_by_member_type_and_duration_density.png",
-       path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
-       width = 7,
-       height = 4,
-       dpi = 600)
-```
-
-Plot duration using kernal density plot, split by member type and category of day.
-
-```{r plot_trips_by_member_type_and_duration_split_density}
-ggplot(trip, 
-       aes(x = trip_duration_in_minutes, y = member_type, fill = category_of_day)) +
-  geom_density_ridges(alpha = 0.5) + 
-  theme_ridges() +
-  theme(legend.position = "none") + 
-    labs(title = "Trips by Member Type & Trip Duration",
-    subtitle = "Members take more short-duration trips (less than 20 minutes) compared to casual riders.",
-    x = "Trip Duration",
-    y = "Density") + 
-  guides(fill = guide_legend(title = "Member Type")) + 
-  scale_fill_manual(values = cbPalette) + 
-  cyclistic_theme
-
-ggsave(filename = "trips_by_member_type_and_duration_split_density.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
        width = 7,
        height = 4,
@@ -540,7 +500,7 @@ kable(trips_by_member_type_and_day_of_week_v1,
 
 Plot trips by day of week.
 
-```{r plot_trips_by_day_of_week}
+```{r plot_trips_by_day_of_week, message = FALSE}
 trips_by_member_type_and_day_of_week_v2 <- trip %>%
   group_by(day_of_week, member_type) %>%
   summarise(trip_count = n()) %>%
@@ -557,9 +517,8 @@ ggplot(trips_by_member_type_and_day_of_week_v2, aes(x = day_of_week, y = trip_co
   guides(fill = guide_legend(title = "Member Type")) + 
   geom_text(aes(label = paste(percent * 100, "%", sep = "")), colour = "black", vjust = -0.35, size = 3) + 
   geom_text(aes(label = format(trip_count, big.mark = ",", scientific = FALSE)), colour = "black", vjust = 1.25, size = 3) + 
-  scale_fill_manual(values = cbPalette) + 
-  cyclistic_theme
-
+  scale_fill_manual(values = cbPalette)
+  
 ggsave(filename = "trips_by_member_type_and_day_of_week.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
        width = 7,
@@ -642,7 +601,7 @@ kable(hourly_counts,
 
 Then plot the summary.
 
-```{r plot_trips_by_hour_interval}
+```{r plot_trips_by_hour_interval, message = FALSE}
 ggplot(hourly_counts, aes(x = hour_of_day, y = active_trip_count)) +
   geom_bar(stat = "identity", fill = cbPalette[2]) + 
   geom_smooth(se = FALSE, colour = cbPalette[1]) +
@@ -651,9 +610,8 @@ ggplot(hourly_counts, aes(x = hour_of_day, y = active_trip_count)) +
    x = "Hour of Day",
    y = "Active Trip Count") + 
   # guides(fill=guide_legend(title="Hour Type")) + 
-  scale_fill_manual(values = cbPalette) + 
-  cyclistic_theme
-
+  scale_fill_manual(values = cbPalette)
+  
 ggsave(filename = "trips_by_hour_interval.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
        width = 7,
@@ -663,7 +621,7 @@ ggsave(filename = "trips_by_hour_interval.png",
 
 Plot trips by hour of day and day of week.
 
-```{r plot_trips_by_hour_of_day}
+```{r plot_trips_by_hour_of_day, message = FALSE}
 start_trips <- trip %>%
   group_by(start_hour_of_day, day_of_week, member_type) %>%
   summarise(trip_count = n()) %>%
@@ -683,13 +641,12 @@ ggplot(trips_by_hour_v2, aes(x = hour_of_day, y = trip_count, fill = member_type
   geom_bar(stat = "identity") +
   facet_grid(rows = vars(day_of_week)) + 
   labs(title = "Trips by Member Type & Day of Week",
-    subtitle = "....",
+    subtitle = "Daily and hourly patterns highlight commute and recreation dynamics.",
     x = "Hour of Day",
     y = "Trip Count") + 
   guides(fill=guide_legend(title = "Member Type")) + 
-  scale_fill_manual(values = cbPalette) + 
-  cyclistic_theme
-
+  scale_fill_manual(values = cbPalette)
+  
 ggsave(filename = "trips_by_hour_of_day.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
        width = 7,
@@ -742,150 +699,72 @@ I downloaded shape files from the portal to create maps of Cyclistic bike-sharin
 I downloaded the corresponding shape files and use them to generate maps.  These shape files contain boundaries of communities, parks, landmarks (both local and national), and bike routes within the city.  I also include a shape file for the boundaries of Chicago's central business district.
 
 ```{r read_shape_files, message = FALSE}
-communities <- st_read("C:/R/Packages/cyclistic/inst/extdata/chicago/communities/geo_export_03f8c85a-4634-44fb-bcb9-4653575ff11b.shp")
+communities <- st_read("C:/R/Packages/cyclistic/inst/extdata/chicago/communities/geo_export_communities.shp")
 
-parks <- st_read("C:/R/Packages/cyclistic/inst/extdata/chicago/parks/geo_export_cc5e1418-25db-49e7-a6fd-af8782efc515.shp")
+parks <- st_read("C:/R/Packages/cyclistic/inst/extdata/chicago/parks/geo_export_parks.shp")
 
-landmarks <- st_read("C:/R/Packages/cyclistic/inst/extdata/chicago/landmarks/Chicago_Landmarks_June2012.shp")
+landmarks <- st_read("C:/R/Packages/cyclistic/inst/extdata/chicago/landmarks/geo_export_landmarks.shp")
 
-national_landmarks <- st_read("C:/R/Packages/cyclistic/inst/extdata/chicago/national/LandmarksNationalRegister_nov2012.shp")
+national_landmarks <- st_read("C:/R/Packages/cyclistic/inst/extdata/chicago/national/geo_export_national_landmarks.shp")
 
-routes <- st_read("C:/R/Packages/cyclistic/inst/extdata/chicago/routes/geo_export_a6173042-ca11-4e91-bb92-fa19586fbb96.shp")
+routes <- st_read("C:/R/Packages/cyclistic/inst/extdata/chicago/routes/geo_export_bike_routes.shp")
 
-business <- st_read("C:/R/Packages/cyclistic/inst/extdata/chicago/business/geo_export_f4ec6c23-2aae-4c59-8822-17d79b57d91f.shp")
+business <- st_read("C:/R/Packages/cyclistic/inst/extdata/chicago/business/geo_export_business_district.shp")
 ```
 
 ### Geographic Density of Trips
 
-#### Trip Starts
+#### Trip Starts and Ends
 
-What are the most common daily trips, and how do these trips vary by day of week and member type?
+Start by generating a data frame that contains the trip count for each starting and ending station in descending order of count.  Include relative frequency for each station.
 
-Start by generating a data frame that contains the trip count for each starting station in descending order of count.  Include relative frequency for each station.
-
-```{r trip_starts}
+```{r trip_starts_and_ends, message = FALSE}
 trip_starts <- trip %>%
   group_by(start_station_name, start_longitude, start_latitude) %>%
   summarise(trip_count = n()) %>%
   arrange(desc(trip_count)) %>%
   ungroup() %>%
-  mutate(percent = round(trip_count / sum(trip_count), 2))
-```
+  mutate(type = "Start",
+         percent = round(trip_count / sum(trip_count), 2)) %>%
+  rename(station_name = start_station_name,
+         longitude = start_longitude,
+         latitude = start_latitude)
 
-Plot trip starts.
-
-```{r plot_trip_starts}
-ggplot() +
-  geom_sf(data = communities, fill = "grey", alpha = 0.1) +
-  geom_point(data = trip_starts, 
-             aes(x = start_longitude, 
-                 y = start_latitude,
-                 colour = "#E69F00")) + 
-  scale_color_identity() +
-  csf + 
-  geom_sf(data = business, fill = "grey", alpha = 0.4) +
-  labs(title = "Geographic Density of Trip Starts",
-       subtitle = "Trip starts are concentrated in and around Chicago's central business district.",
-       x = "Longitude",
-       y = "Latitude") + 
-  cyclistic_theme
-
-ggsave(filename = "trip_starts.png",
-       path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
-       width = 7,
-       height = 4,
-       dpi = 600)
-```
-
-#### Trip Ends
-
-Do the same for ending stations.
-
-```{r trip_ends}
 trip_ends <- trip %>%
   group_by(end_station_name, end_longitude, end_latitude) %>%
   summarise(trip_count = n()) %>%
   arrange(desc(trip_count)) %>%
   ungroup() %>%
-  mutate(percent = round(trip_count / sum(trip_count), 2))
+  mutate(type = "End",
+         percent = round(trip_count / sum(trip_count), 2)) %>%
+  rename(station_name = end_station_name,
+         longitude = end_longitude,
+         latitude = end_latitude)
+
+trip_starts_and_ends <- rbind(trip_starts, trip_ends)
 ```
 
-Plot trip ends.
+Plot trip starts and ends.
 
-```{r plot_trip_ends}
+```{r plot_trip_starts_and_ends, message = FALSE}
 ggplot() +
   geom_sf(data = communities, fill = "grey", alpha = 0.1) +
-  geom_point(data = trip_ends, 
-             aes(x = end_longitude, 
-                 y = end_latitude,
+  geom_point(data = trip_starts_and_ends,
+             size = 0.5,
+             aes(x = longitude, 
+                 y = latitude,
                  colour = "#E69F00")) + 
+  facet_grid(~factor(type, levels=c("Start", "End"))) +
   scale_color_identity() +
   csf + 
   geom_sf(data = business, fill = "grey", alpha = 0.4) +
-  labs(title = "Geographic Density of Trip Ends",
-       subtitle = "Trip ends are also concentrated in and around Chicago's central business district.",
+  labs(title = "Geographic Density of Trip Starts & Ends",
+       subtitle = "Trips are concentrated in and extend from Chicago's central business district.",
        x = "Longitude",
-       y = "Latitude") + 
-  cyclistic_theme
+       y = "Latitude")
+  
 
-ggsave(filename = "trip_ends.png",
-       path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
-       width = 7,
-       height = 4,
-       dpi = 600)
-```
-
-### Plot Trip Density Using Stadia Maps
-
-Code below uses stamen map tiles served by Stadia Maps to plot trip density.  I am using Stadia Maps to see if the plots are more easily read (versus shape files). 
-
-Note that, to use Stadia Maps, you will need to setup an account and generate an API key. The code below using the keyring package to retrieve my personal API key from my local machine.
-
-Get Stadia map for Chicago
-
-```{r get_api_key}
-register_stadiamaps(key = keyring::key_get(service = "Stadia",
-                                           username = "donnie.minnick@gmail.com"))
-
-chicago_sm <- get_stadiamap(bbox = c(bb[1,1], bb[2,1], 
-                                     bb[1,2], bb[2,2]),
-                            maptype = "stamen_toner_lite")
-```
-
-```{r stadia_plot_trip_starts}
-ggmap(chicago_sm) + 
-  geom_point(data = trip_starts, 
-             aes(x = start_longitude, 
-                 y = start_latitude,
-                 colour = "#E69F00")) + 
-  scale_color_identity() +
-  labs(title = "Geographic Density of Trip Starts",
-       subtitle = "Trip starts are concentrated in and around Chicago's central business district.",
-       x = "Longitude",
-       y = "Latitude") + 
-  cyclistic_theme
-
-ggsave(filename = "trip_starts_stadia.png",
-       path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
-       width = 7,
-       height = 4,
-       dpi = 600)
-```
-
-```{r stadia_plot_trip_ends}
-ggmap(chicago_sm) + 
-  geom_point(data = trip_ends, 
-             aes(x = end_longitude, 
-                 y = end_latitude,
-                 colour = "#E69F00")) + 
-  scale_color_identity() +
-  labs(title = "Geographic Density of Trip Ends",
-       subtitle = "Trip ends are concentrated in and around Chicago's central business district.",
-       x = "Longitude",
-       y = "Latitude") + 
-  cyclistic_theme
-
-ggsave(filename = "trip_ends_stadia.png",
+ggsave(filename = "trip_starts_and_ends.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
        width = 7,
        height = 4,
@@ -943,18 +822,17 @@ Plot bike routes to visualize the network of routes.
 ```{r plot_bike_routes}
 ggplot() +
   geom_sf(data = communities, fill = "white") + 
-  geom_sf(data = routes, fill = "blue") + 
-  labs(title = "Existing Bike Routes in Chicago",
-    subtitle = "....",
+  geom_sf(data = routes, color = "#E69F00") + 
+  labs(title = "Chicago Bike Routes",
     x = "Longitude",
     y = "Latitude") + 
-  scale_fill_manual(values = cbPalette) + 
-  cyclistic_theme
-
+  scale_fill_manual(values = cbPalette) +
+  theme(plot.title = element_text(hjust = 0.5))
+  
 ggsave(filename = "bike_routes.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
-       width = 7,
-       height = 4,
+       width = 6,
+       height = 7,
        dpi = 600)
 ```
 
@@ -972,17 +850,16 @@ Plot parks.
 ggplot() +
   geom_sf(data = communities, fill = "white") + 
   geom_sf(data = parks, fill = "#E69F00") + 
-  labs(title = "Existing Parks in Chicago.",
-    subtitle = "....",
+  labs(title = "Chicago Parks & Recreation Areas",
     x = "Longitude",
     y = "Latitude") + 
-  scale_fill_manual(values = cbPalette) + 
-  cyclistic_theme
+  scale_fill_manual(values = cbPalette) +
+  theme(plot.title = element_text(hjust = 0.5))
 
 ggsave(filename = "parks.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
-       width = 7,
-       height = 4,
+       width = 6,
+       height = 7,
        dpi = 600)
 ```
 
@@ -990,55 +867,31 @@ Bike routes that traverse parks often offer scenic and enjoyable paths. Cyclists
 
 ### Landmarks
 
-Chicago has `r format(nrow(landmarks), big.mark = ",", scientific = FALSE)` local landmarks throughout the city.
+Chicago has `r format(nrow(landmarks), big.mark = ",", scientific = FALSE)` local landmarks and `r format(nrow(national_landmarks), big.mark = ",", scientific = FALSE)` national landmarks throughout the city.
 
 Plot landmarks.
 
-```{r plot_local_landmarks}
+```{r plot_landmarks}
 ggplot() +
   geom_sf(data = communities, fill = "white") + 
   geom_sf(data = landmarks, fill = "#E69F00") + 
-  labs(title = "Existing Local Landmarks in Chicago.",
-    subtitle = "....",
+    geom_sf(data = national_landmarks, fill = "#E69F00") + 
+  labs(title = "Chicago Landmarks",
     x = "Longitude",
     y = "Latitude") + 
-  scale_fill_manual(values = cbPalette) + 
-  cyclistic_theme
+  scale_fill_manual(values = cbPalette) +
+  theme(plot.title = element_text(hjust = 0.5))
 
-ggsave(filename = "local_landmarks.png",
+ggsave(filename = "landmarks.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
-       width = 7,
-       height = 4,
+       width = 6,
+       height = 7,
        dpi = 600)
 ```
 
 The concentration of landmarks and national landmarks suggests focal points of interest and cultural significance.
 
 These central locations create opportunities for bike-sharing services to cater to tourists, residents, and event-goers who may want convenient and sustainable transportation options to explore these landmarks.
-
-### National Landmarks
-
-Chicago has `r format(nrow(national_landmarks), big.mark = ",", scientific = FALSE)` national landmarks throughout the city.
-
-Plot national landmarks.
-
-```{r plot_national_landmarks}
-ggplot() +
-  geom_sf(data = communities, fill = "white") + 
-  geom_sf(data = national_landmarks, fill = "#E69F00") + 
-  labs(title = "National Landmarks in Chicago.",
-    subtitle = "....",
-    x = "Longitude",
-    y = "Latitude") + 
-  scale_fill_manual(values = cbPalette) + 
-  cyclistic_theme
-
-ggsave(filename = "national_landmarks.png",
-       path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
-       width = 7,
-       height = 4,
-       dpi = 600)
-```
 
 Landmarks and national landmarks often attract tourists, creating potential opportunities for bike-sharing services.  Bike-sharing can be promoted as a tourist-friendly transportation mode, allowing visitors to explore the city at their own pace, visit attractions, and experience the local culture.
 

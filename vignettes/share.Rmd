@@ -22,6 +22,88 @@ You can find the Github repository for my work [here](https://github.com/dtminni
 
 This phase involves creating effective visuals to bring the data to life and leveraging storytelling to communicate the results of analysis to others.
 
-### Sharing Findings
+### Audience
 
+My audience is the director of marketing and the Cyclistic executive team.
 
+The director of marketing needs to act on my recommendations, and the executive team needs to approve them.
+
+If I narrowed my audience to a single person, this would be the marketing director, for two reasons.  First, she can be an advocate and voice of support.  And ultimately, she will be accountable for executing a marketing strategy that converts casual riders to members.
+
+The audience cares about our ability to increase profits via customer engagement and annual memberships.  
+
+The audience needs to approve the recommendations.  Once approved, the marketing director needs to develop a marketing strategy and execute that strategy with help from the rest of the executive team.
+
+### Benefits
+
+Increasing memberships can yield several potential business benefits for Cyclistic:
+
+Annual memberships provide a steady and predictable stream of revenue for Cyclistic. With more members, the company can better forecast its financial outlook and plan for long-term growth.
+
+Memberships often come with perks and exclusive benefits, fostering a sense of loyalty among customers. This loyalty can lead to repeat business, as members are more likely to continue using Cyclistic's services over an extended period.
+
+Converting casual riders into annual members reduces the need for continuous marketing efforts to attract new customers. Once a casual rider becomes a member, the ongoing relationship can be sustained with less intensive marketing compared to acquiring new customers.
+
+Annual memberships typically represent a higher value than one-time purchases. By increasing the number of members, Cyclistic can enhance the overall Customer lifetime Value, maximizing the revenue generated from each customer over the course of their relationship with the company.
+
+With a larger member base, Cyclistic gains more data on customer behavior, preferences, and demographics. This valuable information can be leveraged for targeted marketing campaigns, improving the effectiveness of future promotional efforts.
+
+A higher proportion of annual members allows for better operational planning. It helps in optimizing fleet management, station resources, and overall logistics, leading to increased efficiency and reduced operational costs.
+Competitive Advantage:
+
+A substantial membership base can give Cyclistic a competitive advantage in the bike-sharing market. It reinforces the company's position as a preferred choice for customers and may deter competitors, especially if the benefits of membership are unique and compelling.
+
+A thriving membership community can become advocates for Cyclistic. Satisfied members are more likely to share positive experiences, refer friends and family, and engage in word-of-mouth marketing, contributing to the company's brand reputation and community presence.
+
+### Risks
+
+The risks of not increasing annual memberships for Cyclistic include:
+
+Dependence on one-time purchases from casual riders can lead to revenue fluctuations, making it challenging for Cyclistic to predict and manage its financial stability effectively.
+
+Without a growing base of annual members, Cyclistic may struggle to build sustained customer loyalty. This could result in a higher churn rate as casual riders might not develop a long-term connection with the brand.
+
+Continuously attracting new casual riders requires ongoing marketing efforts and expenses. The cost of acquiring new customers can be higher than retaining existing ones, and not increasing annual memberships might lead to an inefficient use of marketing resources.
+
+The absence of a substantial annual membership base means the overall customer lifetime Value may be lower. Cyclistic might miss out on the extended revenue potential that comes with a loyal, long-term member base.
+
+A lower proportion of annual members may result in operational inefficiencies. Cyclistic may find it challenging to optimize fleet management, station resources, and overall logistics without a more stable and predictable membership base.
+
+With fewer members, Cyclistic may have limited data to inform strategic decisions. Insights gained from a growing member base are crucial for targeted marketing, improving services, and adapting to changing customer preferences.
+Brand Perception Challenges:
+
+Dependence on a large number of casual riders exposes Cyclistic to external shocks, such as economic downturns or shifts in consumer behavior. Annual memberships provide a more resilient revenue stream during challenging times.
+
+### Big Idea
+
+Incorporate an emphasis on commuting benefits and the concept of urban exploration as a way to appeal to a diverse range of potential members.
+
+#### Commuting Benefits
+
+Marketing can highlight the convenience, cost-effectiveness, and environmental benefits of using Cyclistic for daily commuting, showcasing how annual memberships make regular commuting seamless and affordable compared to one-time passes.
+
+Explore partnerships with local businesses or organizations to offer additional perks for commuters, such as discounts or exclusive access to certain services. This can add extra value to annual memberships and incentivize casual riders to make the switch.
+
+#### Promoting Urban Exploration
+
+Craft a narrative that positions bike-sharing as a gateway to discovering the city. Use storytelling in marketing materials, social media, and promotions to inspire a sense of adventure and curiosity among casual riders.
+
+Organize themed rides or events that encourage riders to explore different parts of the city. Highlight unique landmarks, cultural hotspots, and hidden gems to make the experience of urban exploration both enjoyable and educational.
+
+Provide exclusive guides or curated routes for annual members, showcasing the best routes for urban exploration. This adds an extra layer of value for members and enhances the overall experience of discovering the city on a bike.
+
+#### Synergies & Combined Value Proposition
+
+Emphasize how annual memberships not only make commuting efficient but also open up a world of urban exploration. 
+
+Highlight the dual benefits of using Cyclistic for both practical, everyday needs and the joy of discovering the city in a unique way.
+
+Multi-Modal Transportation: Emphasize how bike-sharing complements other modes of urban transportation, offering flexibility and freedom in exploring the city. Showcase how members can seamlessly integrate bike-sharing into their daily routines and spontaneous exploration.
+
+### Digital Media Strategy
+
+Leverage visually appealing content on digital platforms to showcase the vibrant experiences of commuting and urban exploration with Cyclistic. Use engaging visuals and videos to convey the excitement and freedom that come with bike-sharing.
+
+Encourage users, especially annual members, to share their commuting and exploration experiences on social media. User-generated content can be a powerful tool for marketing, showcasing real-life stories and adventures.
+
+The combination of practicality of commuting benefits with the allure of urban exploration has the potential to resonate with a wide audience, attracting both those seeking a reliable daily commute solution and those looking for exciting ways to experience their city.
