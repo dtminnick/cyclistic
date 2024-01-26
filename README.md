@@ -28,4 +28,4 @@ Here are the challenges I needed to overcome to complete this work and a summary
 
 ## Notes
 
-
+Due to size of the source files, I did not push them from the local repository to this Github repository.  To reproduce the steps I followed to create this sample, see the code in the Prepare and Process notebooks, either in this repository or by following the links above.
