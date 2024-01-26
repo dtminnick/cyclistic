@@ -6,3 +6,5 @@ inst/doc
 data/source.rda
 inst/extdata/zip
 inst/extdata/source
+data/
+inst/extdata/output
