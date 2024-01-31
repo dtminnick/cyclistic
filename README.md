@@ -27,5 +27,4 @@ Here are the challenges I needed to overcome to complete this work and a summary
 | Active Trips by Hour | Trip start and end data was captured in a manner that required a solution for counting active trips by hour interval, accounting for trips that overlap intervals. | I created a function to count active trips for each hour, considering the start and end hours of trips. This function accounted for trips that overlapped multiple hour intervals to avoid counting them more than once. |
 
 ## Notes
-
 Due to size of the source files, I did not push them from the local repository to this Github repository.  To reproduce the steps I followed to create this sample, see the code in the Prepare and Process notebooks, either in this repository or by following the links above.
