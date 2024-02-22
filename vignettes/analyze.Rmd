@@ -124,6 +124,25 @@ Understanding this proportion allows Cyclistic to strategically target casual ri
 
 Considering the proportion of casual riders, Cyclistic might explore introducing flexible membership options or pricing plans that appeal to users who prefer occasional rides. This flexibility can enhance the service's attractiveness to a broader audience.
 
+### Proportion of Trips by Customer Type and Category of Day
+
+Establish the proportion of trips taken by casual riders and members by category of day (weekday versus weekend).
+
+```{r trips_by_member_type_category_of_day}
+trips_by_member_type_and_category_of_day <- trip %>%
+  group_by(category_of_day, member_type) %>%
+  summarise(trip_count = n()) %>%
+  mutate(percent = round(trip_count / sum(trip_count), 2)) %>%
+  bind_rows(summarise(., across(where(is.numeric), sum),
+                       across(where(is.character), ~ "Combined")))
+
+kable(trips_by_member_type_and_category_of_day,
+      col.names = c("Category of Day", "Member Type", "Trip Count", "Percent"),
+      caption = "Trips by Member Type and Category of Day",
+      format.args = list(big.mark = ","),
+      align = c("l", "l", "r", "r"))
+```
+
 ### Proportion of Trips by Customer Type and Month
 
 Understanding how the proportion of trips fluctuates throughout the year provides insights into seasonal variations. This information can guide the timing of conversion campaigns, considering factors such as weather, holidays, or events that might influence customer behavior.
@@ -577,7 +596,7 @@ The following code segment creates a data frame to represent hours of the day.  
 
 The goal is to analyze and summarize the number of active trips during different hours of the day based on the trip start and end times, accounting for trips that overlap multiple hour intervals.
 
-```{r trips_by_hour_interval}
+```{r wday_trips_by_hour_interval}
 hours <- 0:23
 
 hourly_counts <- data.frame(hour_of_day = hours)
@@ -588,11 +607,15 @@ count_active_trips <- function(current_hour, start_hour, end_hour) {
 
 }
 
-hourly_counts <- hourly_counts %>%
-  rowwise() %>%
-  mutate(active_trip_count = count_active_trips(hour_of_day, trip$start_hour_of_day, trip$end_hour_of_day))
+wday_trips <- trip %>% filter(category_of_day == "Workweek")
 
-kable(hourly_counts,
+wend_trips <- trip %>% filter(category_of_day == "Weekend")
+
+wday_hourly_counts <- hourly_counts %>%
+  rowwise() %>%
+  mutate(active_trip_count = count_active_trips(hour_of_day, wday_trips$start_hour_of_day, wday_trips$end_hour_of_day))
+
+kable(wday_hourly_counts,
       col.names = c("Hour", "Active Trip Count"),
       caption = "Active Trips by Hour Interval",
       format.args = list(big.mark = ","),
@@ -602,7 +625,42 @@ kable(hourly_counts,
 Then plot the summary.
 
 ```{r plot_trips_by_hour_interval, message = FALSE}
-ggplot(hourly_counts, aes(x = hour_of_day, y = active_trip_count)) +
+ggplot(wday_hourly_counts, aes(x = hour_of_day, y = active_trip_count)) +
+  geom_bar(stat = "identity", fill = cbPalette[2]) + 
+  geom_smooth(se = FALSE, colour = cbPalette[1]) +
+  facet_grid(rows = vars(member_type)) + 
+  labs(title = "Active Trips by Hour Interval",
+   subtitle = "Trips peak between the hours of 7:00-9:00 am and 4:00-6:00 pm.",
+   x = "Hour of Day",
+   y = "Active Trip Count") + 
+  # guides(fill=guide_legend(title="Hour Type")) + 
+  scale_fill_manual(values = cbPalette)
+  
+ggsave(filename = "wday_trips_by_hour_interval.png",
+       path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
+       width = 7,
+       height = 4,
+       dpi = 600)
+```
+
+```{r wend_trips_by_hour_interval, messages = FALSE}
+wend_trips <- trip %>% filter(category_of_day == "Weekend")
+
+wend_hourly_counts <- hourly_counts %>%
+  rowwise() %>%
+  mutate(active_trip_count = count_active_trips(hour_of_day, wend_trips$start_hour_of_day, wend_trips$end_hour_of_day))
+
+kable(wend_hourly_counts,
+      col.names = c("Hour", "Active Trip Count"),
+      caption = "Active Trips by Hour Interval",
+      format.args = list(big.mark = ","),
+      align = c("l", "r"))
+```
+
+Then plot the summary.
+
+```{r plot_trips_by_hour_interval, message = FALSE}
+ggplot(wend_hourly_counts, aes(x = hour_of_day, y = active_trip_count)) +
   geom_bar(stat = "identity", fill = cbPalette[2]) + 
   geom_smooth(se = FALSE, colour = cbPalette[1]) +
   labs(title = "Active Trips by Hour Interval",
@@ -612,7 +670,7 @@ ggplot(hourly_counts, aes(x = hour_of_day, y = active_trip_count)) +
   # guides(fill=guide_legend(title="Hour Type")) + 
   scale_fill_manual(values = cbPalette)
   
-ggsave(filename = "trips_by_hour_interval.png",
+ggsave(filename = "wend_trips_by_hour_interval.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
        width = 7,
        height = 4,
@@ -722,10 +780,10 @@ Start by generating a data frame that contains the trip count for each starting 
 trip_starts <- trip %>%
   group_by(start_station_name, start_longitude, start_latitude) %>%
   summarise(trip_count = n()) %>%
-  arrange(desc(trip_count)) %>%
-  ungroup() %>%
-  mutate(type = "Start",
-         percent = round(trip_count / sum(trip_count), 2)) %>%
+  # arrange(desc(trip_count)) %>%
+  # ungroup() %>%
+  # mutate(type = "Start",
+  #        percent = round(trip_count / sum(trip_count), 2)) %>%
   rename(station_name = start_station_name,
          longitude = start_longitude,
          latitude = start_latitude)
@@ -733,15 +791,17 @@ trip_starts <- trip %>%
 trip_ends <- trip %>%
   group_by(end_station_name, end_longitude, end_latitude) %>%
   summarise(trip_count = n()) %>%
-  arrange(desc(trip_count)) %>%
-  ungroup() %>%
-  mutate(type = "End",
-         percent = round(trip_count / sum(trip_count), 2)) %>%
+  # arrange(desc(trip_count)) %>%
+  # ungroup() %>%
+  # mutate(type = "End",
+  #        percent = round(trip_count / sum(trip_count), 2)) %>%
   rename(station_name = end_station_name,
          longitude = end_longitude,
          latitude = end_latitude)
 
-trip_starts_and_ends <- rbind(trip_starts, trip_ends)
+trip_starts_and_ends <- rbind(trip_starts, trip_ends) %>%
+  group_by(station_name, longitude, latitude) %>%
+  summarize(trip_count = sum(trip_count))
 ```
 
 Plot trip starts and ends.
@@ -753,22 +813,35 @@ ggplot() +
              size = 0.5,
              aes(x = longitude, 
                  y = latitude,
-                 colour = "#E69F00")) + 
-  facet_grid(~factor(type, levels=c("Start", "End"))) +
+                 colour = "#4F81BD")) + 
+                 # colour = "#E69F00")) + 
+  # facet_grid(~factor(type, levels=c("Start", "End"))) +
   scale_color_identity() +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "#FBFAF7"),
+        plot.background = element_rect(fill = "#FBFAF7"),
+        strip.text.x = element_blank()) + 
   csf + 
-  geom_sf(data = business, fill = "grey", alpha = 0.4) +
-  labs(title = "Geographic Density of Trip Starts & Ends",
-       subtitle = "Trips are concentrated in and extend from Chicago's central business district.",
-       x = "Longitude",
-       y = "Latitude")
+  geom_sf(data = business, fill = "grey", alpha = 0.5)
+  # labs(title = "Geographic Density of Trip Starts & Ends")
+       # subtitle = "Trips are concentrated in and extend from Chicago's central business district.",
+       # x = "Longitude",
+       # y = "Latitude")
   
 
 ggsave(filename = "trip_starts_and_ends.png",
        path = "C:/R/Packages/cyclistic/inst/extdata/plots/",
        width = 7,
        height = 4,
-       dpi = 600)
+       dpi = 600,
+       bg = "#FBFAF7")
 ```
 
 #### Observations
@@ -822,11 +895,22 @@ Plot bike routes to visualize the network of routes.
 ```{r plot_bike_routes}
 ggplot() +
   geom_sf(data = communities, fill = "white") + 
-  geom_sf(data = routes, color = "#E69F00") + 
-  labs(title = "Chicago Bike Routes",
-    x = "Longitude",
-    y = "Latitude") + 
-  scale_fill_manual(values = cbPalette) +
+  geom_sf(data = routes, color = "#4F81BD") + 
+    theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "#FBFAF7"),
+        plot.background = element_rect(fill = "#FBFAF7"),
+        strip.text.x = element_blank()) + 
+  # labs(title = "Chicago Bike Routes",
+  #   x = "Longitude",
+  #   y = "Latitude") + 
+  # scale_fill_manual(values = cbPalette) +
   theme(plot.title = element_text(hjust = 0.5))
   
 ggsave(filename = "bike_routes.png",
@@ -849,11 +933,22 @@ Plot parks.
 ```{r plot_parks}
 ggplot() +
   geom_sf(data = communities, fill = "white") + 
-  geom_sf(data = parks, fill = "#E69F00") + 
-  labs(title = "Chicago Parks & Recreation Areas",
-    x = "Longitude",
-    y = "Latitude") + 
-  scale_fill_manual(values = cbPalette) +
+  geom_sf(data = parks, fill = "#4F81BD") + 
+    theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "#FBFAF7"),
+        plot.background = element_rect(fill = "#FBFAF7"),
+        strip.text.x = element_blank()) + 
+  # labs(title = "Chicago Parks & Recreation Areas",
+  #   x = "Longitude",
+  #   y = "Latitude") + 
+  # scale_fill_manual(values = cbPalette) +
   theme(plot.title = element_text(hjust = 0.5))
 
 ggsave(filename = "parks.png",
@@ -874,12 +969,23 @@ Plot landmarks.
 ```{r plot_landmarks}
 ggplot() +
   geom_sf(data = communities, fill = "white") + 
-  geom_sf(data = landmarks, fill = "#E69F00") + 
-    geom_sf(data = national_landmarks, fill = "#E69F00") + 
-  labs(title = "Chicago Landmarks",
-    x = "Longitude",
-    y = "Latitude") + 
-  scale_fill_manual(values = cbPalette) +
+  geom_sf(data = landmarks, fill = "#4F81BD") + 
+    geom_sf(data = national_landmarks, fill = "#4F81BD") + 
+    theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "#FBFAF7"),
+        plot.background = element_rect(fill = "#FBFAF7"),
+        strip.text.x = element_blank()) + 
+  # labs(title = "Chicago Landmarks",
+  #   x = "Longitude",
+  #   y = "Latitude") + 
+  # scale_fill_manual(values = cbPalette) +
   theme(plot.title = element_text(hjust = 0.5))
 
 ggsave(filename = "landmarks.png",
